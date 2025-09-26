@@ -1,15 +1,19 @@
 import { CommonModule } from '@angular/common';
 import {
+  AfterViewInit,
   ChangeDetectionStrategy,
   Component,
+  ElementRef,
   EventEmitter,
   Input,
   OnChanges,
+  OnDestroy,
   Output,
   SimpleChanges,
+  ViewChild,
   inject,
 } from '@angular/core';
-import { BaseChartDirective } from 'ng2-charts';
+import Chart from 'chart.js/auto';
 import { ChartConfiguration, ChartDataset, ChartOptions } from 'chart.js';
 
 import '../../stocks/components/chart.registry';
@@ -30,12 +34,12 @@ const RANGE_KEYS: readonly RangeKey[] = ['1W', '1M', '3M', '6M', '1Y', 'YTD', 'M
 @Component({
   selector: 'app-portfolio-chart',
   standalone: true,
-  imports: [CommonModule, BaseChartDirective],
+  imports: [CommonModule],
   templateUrl: './portfolio-chart.html',
   styleUrl: './portfolio-chart.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class PortfolioChartComponent implements OnChanges {
+export class PortfolioChartComponent implements OnChanges, AfterViewInit, OnDestroy {
   private readonly timezone = inject(APP_TIMEZONE);
 
   readonly ranges = RANGE_KEYS;
@@ -46,8 +50,12 @@ export class PortfolioChartComponent implements OnChanges {
 
   @Output() readonly rangeChange = new EventEmitter<RangeKey>();
 
+  @ViewChild('chartCanvas') private chartCanvas?: ElementRef<HTMLCanvasElement>;
+
   protected chartData: ChartConfiguration<'line'>['data'] = { datasets: [] };
   protected chartOptions: ChartOptions<'line'> = this.createChartOptions();
+
+  private chartInstance: Chart<'line'> | null = null;
 
   private readonly currencyFormatter = new Intl.NumberFormat('de-DE', {
     style: 'currency',
@@ -69,13 +77,44 @@ export class PortfolioChartComponent implements OnChanges {
     if (changes['series']) {
       this.chartData = this.createChartData();
       this.chartOptions = this.createChartOptions();
+      this.renderChart();
     }
+  }
+
+  ngAfterViewInit(): void {
+    this.renderChart();
+  }
+
+  ngOnDestroy(): void {
+    this.chartInstance?.destroy();
+    this.chartInstance = null;
   }
 
   protected onRangeChange(range: RangeKey): void {
     if (range !== this.range) {
       this.rangeChange.emit(range);
     }
+  }
+
+  private renderChart(): void {
+    if (!this.chartCanvas) {
+      return;
+    }
+
+    const config: ChartConfiguration<'line'> = {
+      type: 'line',
+      data: this.chartData,
+      options: this.chartOptions,
+    };
+
+    if (this.chartInstance) {
+      this.chartInstance.data = config.data;
+      this.chartInstance.options = config.options ?? {};
+      this.chartInstance.update();
+      return;
+    }
+
+    this.chartInstance = new Chart(this.chartCanvas.nativeElement, config);
   }
 
   private createChartData(): ChartConfiguration<'line'>['data'] {

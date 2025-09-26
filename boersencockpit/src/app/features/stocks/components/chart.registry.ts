@@ -1,4 +1,4 @@
-import { Chart, registerables } from 'chart.js';
+import Chart from 'chart.js/auto';
 import annotationPlugin from 'chartjs-plugin-annotation';
 
-Chart.register(...registerables, annotationPlugin);
+Chart.register(annotationPlugin);

@@ -48,7 +48,7 @@
       </ng-container>
       <figure class="space-y-2">
         <div class="chart-container">
-          <canvas baseChart [type]="'line'" [data]="chartData" [options]="chartOptions"></canvas>
+          <canvas #chartCanvas class="chart-canvas"></canvas>
         </div>
         <figcaption class="text-xs text-neutral-500 dark:text-neutral-400">
           Visualisiert Schlusskurse sowie Kauf/Verkauf-Anmerkungen basierend auf deinen erfassten Trades.

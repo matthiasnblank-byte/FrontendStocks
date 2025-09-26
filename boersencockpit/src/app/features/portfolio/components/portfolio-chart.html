@@ -23,7 +23,7 @@
     </ng-container>
     <ng-template #chartContent>
       <ng-container *ngIf="series?.length; else emptyState">
-        <canvas baseChart [data]="chartData" [options]="chartOptions" type="line"></canvas>
+        <canvas #chartCanvas></canvas>
       </ng-container>
     </ng-template>
     <ng-template #emptyState>
