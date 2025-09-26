@@ -1,0 +1,38 @@
+[
+  {
+    "symbol": "AAPL",
+    "name": "Apple Inc.",
+    "currency": "USD",
+    "exchange": "NASDAQ"
+  },
+  {
+    "symbol": "MSFT",
+    "name": "Microsoft Corp.",
+    "currency": "USD",
+    "exchange": "NASDAQ"
+  },
+  {
+    "symbol": "AMZN",
+    "name": "Amazon.com Inc.",
+    "currency": "USD",
+    "exchange": "NASDAQ"
+  },
+  {
+    "symbol": "SAP",
+    "name": "SAP SE",
+    "currency": "EUR",
+    "exchange": "XETRA"
+  },
+  {
+    "symbol": "DTE",
+    "name": "Deutsche Telekom AG",
+    "currency": "EUR",
+    "exchange": "XETRA"
+  },
+  {
+    "symbol": "ADS",
+    "name": "adidas AG",
+    "currency": "EUR",
+    "exchange": "XETRA"
+  }
+]
