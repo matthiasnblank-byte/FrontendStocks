@@ -1,9 +1,103 @@
-<section class="space-y-4">
-  <h1 class="text-2xl font-semibold tracking-tight" tabindex="-1">Details zu {{ symbol$ | async }}</h1>
-  <p class="text-sm text-neutral-600 dark:text-neutral-300">
-    Detaillierte Kennzahlen, Kursverläufe und Nachrichten erscheinen hier in einer späteren Phase.
-  </p>
-  <div class="rounded-lg border border-dashed border-neutral-300 p-6 text-sm text-neutral-500 dark:border-neutral-700 dark:text-neutral-400">
-    Platzhalter für Aktien-spezifische Inhalte.
+<section *ngIf="viewModel$ | async as vm" class="space-y-8">
+  <header class="space-y-2">
+    <h1 class="text-3xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-100" tabindex="-1">
+      {{ vm.symbol }} – Detail
+    </h1>
+    <p class="text-sm text-neutral-500 dark:text-neutral-400">{{ vm.stockName || 'Unbekannter Titel' }}</p>
+  </header>
+
+  <div class="grid gap-4 md:grid-cols-3">
+    <div class="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+      <p class="text-sm text-neutral-500 dark:text-neutral-400">Aktueller Preis</p>
+      <p class="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+        <ng-container *ngIf="vm.quote; else priceFallback">
+          {{ vm.quote.price | currency: vm.currency:'symbol':'1.2-2':'de-DE' }}
+        </ng-container>
+      </p>
+      <ng-template #priceFallback>–</ng-template>
+      <p *ngIf="vm.quote" class="text-sm" [ngClass]="vm.quote.changePct >= 0 ? 'text-emerald-600' : 'text-rose-600'">
+        {{ vm.quote.changeAbs | currency: vm.currency:'symbol':'1.2-2':'de-DE' }}
+        ({{ (vm.quote.changePct / 100) | percent:'1.2-2':'de-DE' }})
+      </p>
+    </div>
+    <div class="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+      <p class="text-sm text-neutral-500 dark:text-neutral-400">Nettomenge</p>
+      <p class="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+        {{ vm.netQuantity | number:'1.0-0':'de-DE' }}
+      </p>
+      <p class="text-sm text-neutral-500 dark:text-neutral-400">Durchschnittlicher Einstand</p>
+      <p class="text-lg text-neutral-800 dark:text-neutral-200">
+        {{ vm.avgPrice ? (vm.avgPrice | currency: vm.currency:'symbol':'1.2-2':'de-DE') : '–' }}
+      </p>
+    </div>
+    <div class="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+      <p class="text-sm text-neutral-500 dark:text-neutral-400">Unrealisierter P&amp;L</p>
+      <p
+        class="text-2xl font-semibold"
+        [ngClass]="{
+          'text-emerald-600': (vm.unrealized ?? 0) >= 0,
+          'text-rose-600': (vm.unrealized ?? 0) < 0,
+          'text-neutral-900 dark:text-neutral-100': vm.unrealized === null
+        }"
+      >
+        {{ vm.unrealized !== null ? (vm.unrealized | currency: vm.currency:'symbol':'1.2-2':'de-DE') : '–' }}
+      </p>
+      <p class="text-sm text-neutral-500 dark:text-neutral-400">basierend auf aktuellen Kursen</p>
+    </div>
+  </div>
+
+  <app-timeseries-chart
+    [series]="vm.series"
+    [trades]="vm.trades"
+    [range]="range()"
+    [currency]="vm.currency"
+    [loading]="vm.loading"
+    [error]="vm.error"
+    (rangeChange)="handleRangeChange($event)"
+    (retryRequested)="retry(vm.symbol)"
+  ></app-timeseries-chart>
+
+  <div class="grid gap-8 lg:grid-cols-[minmax(0,360px)_1fr]">
+    <div class="rounded-2xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">
+      <app-trade-form [symbol]="vm.symbol" [heading]="'Trade hinzufügen'" (submitted)="handleTradeSubmit($event)"></app-trade-form>
+    </div>
+    <div class="rounded-2xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">
+      <app-trade-table [trades]="vm.trades" [currencyCode]="vm.currency" (delete)="handleDeleteRequest($event, vm.trades)"></app-trade-table>
+    </div>
   </div>
 </section>
+
+<ng-container *ngIf="pendingDelete() as trade">
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="presentation">
+    <div
+      class="w-full max-w-sm rounded-2xl border border-neutral-200 bg-white p-6 shadow-xl dark:border-neutral-700 dark:bg-neutral-900"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="delete-trade-title"
+      [appFocusTrap]="true"
+    >
+      <div class="space-y-3">
+        <h2 id="delete-trade-title" class="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Trade löschen?</h2>
+        <p class="text-sm text-neutral-500 dark:text-neutral-400">
+          Der Trade vom {{ trade.timestamp | date:'medium':'de-DE' }} über {{ trade.quantity }} Stück wird dauerhaft entfernt.
+        </p>
+        <div class="flex justify-end gap-2">
+          <button
+            type="button"
+            class="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm font-semibold text-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 dark:border-neutral-600 dark:text-neutral-200"
+            (click)="closeDialog()"
+          >
+            Abbrechen
+          </button>
+          <button
+            type="button"
+            class="rounded-lg bg-rose-600 px-3 py-1.5 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
+            (click)="confirmDelete()"
+          >
+            Löschen
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</ng-container>

@@ -1,0 +1,59 @@
+<section class="space-y-4">
+  <header class="flex flex-wrap items-center justify-between gap-4">
+    <div>
+      <h2 class="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Preisverlauf</h2>
+      <p class="text-sm text-neutral-500 dark:text-neutral-400">Vergangene Schlusskurse mit Kauf- und Verkaufsmarkern.</p>
+    </div>
+    <div class="flex flex-wrap items-center gap-2" role="group" aria-label="Zeithorizont wählen">
+      <button
+        *ngFor="let rangeKey of ranges"
+        type="button"
+        class="rounded-full border px-3 py-1 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+        [ngClass]="{
+          'border-primary-500 bg-primary-600 text-white': rangeKey === range,
+          'border-neutral-300 bg-white text-neutral-600 hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800': rangeKey !== range
+        }"
+        [attr.aria-pressed]="rangeKey === range"
+        (click)="onRangeChange(rangeKey)"
+      >
+        {{ rangeKey }}
+      </button>
+    </div>
+  </header>
+
+  <div
+    *ngIf="error && !loading; else chartContent"
+    class="flex flex-col items-center justify-center gap-3 rounded-xl border border-rose-300 bg-rose-50 p-6 text-center text-sm text-rose-700 dark:border-rose-700 dark:bg-rose-900/40 dark:text-rose-200"
+    role="alert"
+  >
+    <p>{{ error }}</p>
+    <button
+      type="button"
+      class="rounded-lg bg-rose-600 px-3 py-2 text-xs font-semibold text-white shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
+      (click)="onRetry()"
+    >
+      Erneut versuchen
+    </button>
+  </div>
+
+  <ng-template #chartContent>
+    <div
+      class="relative overflow-hidden rounded-2xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900"
+      [attr.aria-busy]="loading"
+    >
+      <ng-container *ngIf="loading">
+        <div class="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-neutral-900/80">
+          <div class="h-10 w-10 animate-spin rounded-full border-4 border-primary-500 border-t-transparent"></div>
+        </div>
+      </ng-container>
+      <figure class="space-y-2">
+        <div class="chart-container">
+          <canvas baseChart [type]="'line'" [data]="chartData" [options]="chartOptions"></canvas>
+        </div>
+        <figcaption class="text-xs text-neutral-500 dark:text-neutral-400">
+          Visualisiert Schlusskurse sowie Kauf/Verkauf-Anmerkungen basierend auf deinen erfassten Trades.
+        </figcaption>
+      </figure>
+    </div>
+  </ng-template>
+</section>

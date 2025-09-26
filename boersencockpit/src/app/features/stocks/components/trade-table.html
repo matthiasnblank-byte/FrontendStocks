@@ -1,0 +1,56 @@
+<section class="space-y-4">
+  <header class="flex items-center justify-between">
+    <h2 class="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Trades</h2>
+  </header>
+  <div class="overflow-hidden rounded-xl border border-neutral-200 dark:border-neutral-700">
+    <table class="min-w-full table-auto text-left text-sm text-neutral-700 dark:text-neutral-200">
+      <thead class="sticky top-0 bg-neutral-50 text-xs uppercase tracking-wide text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400">
+        <tr>
+          <th scope="col" class="px-4 py-3">Datum</th>
+          <th scope="col" class="px-4 py-3">Seite</th>
+          <th scope="col" class="px-4 py-3 text-right">Menge</th>
+          <th scope="col" class="px-4 py-3 text-right">Preis</th>
+          <th scope="col" class="px-4 py-3">Notiz</th>
+          <th scope="col" class="px-4 py-3 text-right">Aktionen</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngIf="trades.length === 0" class="text-neutral-500 dark:text-neutral-400">
+          <td colspan="6" class="px-4 py-6 text-center">Noch keine Trades erfasst.</td>
+        </tr>
+        <tr
+          *ngFor="let trade of trades; trackBy: trackByTrade"
+          class="border-t border-neutral-100 odd:bg-white even:bg-neutral-50 dark:border-neutral-800 dark:odd:bg-neutral-900 dark:even:bg-neutral-950"
+        >
+          <td class="px-4 py-3 align-top">{{ formatDate(trade.timestamp) }}</td>
+          <td class="px-4 py-3 align-top">
+            <span
+              class="inline-flex rounded-full px-2 py-1 text-xs font-semibold"
+              [ngClass]="{
+                'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300': trade.side === 'BUY',
+                'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300': trade.side === 'SELL'
+              }"
+            >
+              {{ trade.side === 'BUY' ? 'Kauf' : 'Verkauf' }}
+            </span>
+          </td>
+          <td class="px-4 py-3 text-right align-top font-mono">{{ trade.quantity | number:'1.0-0':'de-DE' }}</td>
+          <td class="px-4 py-3 text-right align-top font-mono">{{ trade.price | currency: currency:'symbol':'1.2-2':'de-DE' }}</td>
+          <td class="px-4 py-3 align-top">
+            <span *ngIf="trade.note; else noNote">{{ trade.note }}</span>
+            <ng-template #noNote>–</ng-template>
+          </td>
+          <td class="px-4 py-3 text-right align-top">
+            <button
+              type="button"
+              class="inline-flex items-center rounded-lg border border-rose-300 px-3 py-1 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 dark:border-rose-700 dark:text-rose-300 dark:hover:bg-rose-900/40"
+              (click)="onDelete(trade.id)"
+            >
+              Löschen
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
