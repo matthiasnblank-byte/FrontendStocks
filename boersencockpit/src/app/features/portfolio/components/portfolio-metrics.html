@@ -1,0 +1,47 @@
+<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+  <section class="card flex flex-col gap-2" aria-live="polite">
+    <h2 class="text-sm font-medium text-slate-500 dark:text-slate-400">Investiertes Kapital (EUR)</h2>
+    <p class="text-2xl font-semibold text-slate-900 dark:text-slate-100">
+      {{ metrics.invested | currency: 'EUR':'symbol':'1.2-2':'de-DE' }}
+    </p>
+  </section>
+
+  <section class="card flex flex-col gap-2" aria-live="polite">
+    <h2 class="text-sm font-medium text-slate-500 dark:text-slate-400">Aktueller Gesamtwert (EUR)</h2>
+    <p class="text-2xl font-semibold text-slate-900 dark:text-slate-100">
+      {{ metrics.totalValue | currency: 'EUR':'symbol':'1.2-2':'de-DE' }}
+    </p>
+  </section>
+
+  <section class="card flex flex-col gap-2" aria-live="polite">
+    <div class="flex items-center justify-between">
+      <h2 class="text-sm font-medium text-slate-500 dark:text-slate-400">P&amp;L absolut (EUR)</h2>
+      <span
+        class="cursor-default"
+        [ngClass]="isPositive(metrics.pnlAbs) ? positiveBadgeClass : negativeBadgeClass"
+        [attr.aria-label]="isPositive(metrics.pnlAbs) ? 'positiv' : 'negativ'"
+      >
+        {{ metrics.pnlAbs | currency: 'EUR':'symbol':'1.2-2':'de-DE' }}
+      </span>
+    </div>
+    <p class="text-2xl font-semibold text-slate-900 dark:text-slate-100">
+      {{ metrics.pnlAbs | currency: 'EUR':'symbol':'1.2-2':'de-DE' }}
+    </p>
+  </section>
+
+  <section class="card flex flex-col gap-2" aria-live="polite">
+    <div class="flex items-center justify-between">
+      <h2 class="text-sm font-medium text-slate-500 dark:text-slate-400">P&amp;L %</h2>
+      <span
+        class="cursor-default"
+        [ngClass]="isPositive(metrics.pnlPct) ? positiveBadgeClass : negativeBadgeClass"
+        [attr.aria-label]="isPositive(metrics.pnlPct) ? 'positiv' : 'negativ'"
+      >
+        {{ metrics.pnlPct | number: '1.2-2':'de-DE' }} %
+      </span>
+    </div>
+    <p class="text-2xl font-semibold text-slate-900 dark:text-slate-100">
+      {{ metrics.pnlPct | number: '1.2-2':'de-DE' }} %
+    </p>
+  </section>
+</div>

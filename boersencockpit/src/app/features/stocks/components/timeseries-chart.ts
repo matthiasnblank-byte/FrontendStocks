@@ -126,15 +126,15 @@ export class TimeseriesChartComponent implements OnChanges {
         legend: { display: false },
         tooltip: {
           callbacks: {
-            label: (context) => {
+            label: (context: { parsed: { y: number } }) => {
               const price = currencyFormat.format(Number(context.parsed.y));
               return `Preis: ${price}`;
             },
-            afterBody: (items) => {
+            afterBody: (items: readonly { parsed: { x: number } }[]) => {
               const tradeTooltip = this.buildTradeTooltip(items[0]?.parsed.x ?? null);
               return tradeTooltip ? [tradeTooltip] : [];
             },
-            title: (items) => {
+            title: (items: readonly { parsed: { x: number } }[]) => {
               const x = items[0]?.parsed.x;
               if (typeof x === 'number') {
                 return tooltipDateFormatter.format(new Date(x));
@@ -151,7 +151,7 @@ export class TimeseriesChartComponent implements OnChanges {
         x: {
           type: 'linear',
           ticks: {
-            callback: (value) => {
+            callback: (value: number | string) => {
               if (typeof value === 'number') {
                 return dateFormatter.format(new Date(value));
               }
@@ -166,7 +166,7 @@ export class TimeseriesChartComponent implements OnChanges {
         },
         y: {
           ticks: {
-            callback: (value) => currencyFormat.format(Number(value)),
+            callback: (value: number | string) => currencyFormat.format(Number(value)),
             maxTicksLimit: 6,
           },
           grid: {
