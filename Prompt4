@@ -1,1 +1,250 @@
+Prompt (Phase 4): Layout-Shell, Sidenav (3 Ebenen), Dark-Mode & A11y
 
+Rolle: Du bist ein präziser Code-Generator. Erweitere die bestehende Angular-17-Standalone-App boersencockpit um eine Layout-Shell mit Header, dreistufiger Sidenav, zugänglicher Navigation, Dark-Mode (persistiert), Fokus-Management und responsivem Content-Bereich. Verwende ausschließlich Tailwind CSS (keine zusätzlichen UI-Libraries). Keine Änderungen am NgRx-State (Phase 3), abgesehen von optionalen reinen UI-Flags (z. B. Sidenav-Collapse).
+
+Wichtig:
+– Locale de-DE, DEFAULT_CURRENCY_CODE='EUR', APP_TIMEZONE='Europe/Berlin' bleiben wirksam.
+– Charts/Business kommen später; hier nur Struktur, Navigation und A11y.
+– Kein Inline-any. Keine globalen CDN-Assets.
+
+0) Zielbild & UX-Anforderungen
+
+Shell mit festen Landmarks: <header>, <nav aria-label="Hauptnavigation">, <main role="main">, <footer>.
+
+Sidenav (3 Ebenen):
+
+Ebene 1: Überblick/Listing „Aktien“ (Platzhalter)
+
+Ebene 2: „Aktie hinzufügen“ (führt zu /stocks/add)
+
+Ebene 3: „Portfolio-Übersicht (Gesamtchart)“ (führt zu /portfolio)
+
+Responsives Verhalten:
+
+≥ lg: Sidenav dauerhaft sichtbar (dockt links an, 280 px, resizable via CSS-Var).
+
+< lg: Sidenav off-canvas mit Esc schließbar, Focus Trap innerhalb, Overlay mit aria-modal.
+
+Dark-Mode: Toggle im Header; Persistenz via localStorage und Klasse dark auf <html>.
+
+Tastatur & A11y:
+
+Skip-Link zu #main (position: absolute außerhalb des Sichtfelds, sichtbar beim Fokus).
+
+Roving-tabindex in der Sidenav (Pfeiltasten ↑/↓, Home/End, Enter/Space aktiviert Link).
+
+Aktive Route visuell und semantisch markiert: aria-current="page" und Tailwind-Styles.
+
+Fokus-Management bei Routing: Nach Navigation Fokus auf <h1> der Zielseite.
+
+Alle interaktiven Elemente mit aussagekräftigen aria-label/aria-describedby.
+
+1) Verzeichnis- & Komponentenstruktur
+/src/app
+  /layout
+    app-shell.component.{ts,html,css}
+    header.component.{ts,html,css}
+    sidenav/
+      sidenav.component.{ts,html,css}
+      sidenav-section.{ts,html,css}        // generische Gruppe
+      sidenav-item.{ts,html,css}           // einzelner Navigationspunkt
+    accessibility/
+      focus-trap.directive.ts               // minimaler Focus-Trap
+      roving-tabindex.directive.ts          // für Menülisten
+      skip-link.component.{ts,html,css}
+  /features
+    /stocks/pages
+      stocks-list.page.{ts,html,css}       // vorhanden; hier nur H1/Struktur ergänzen
+      stock-add.page.{ts,html,css}
+      stock-detail.page.{ts,html,css}
+    /portfolio/pages
+      portfolio-overview.page.{ts,html,css}
+  /core/services
+    theme.service.ts                        // Dark-Mode
+  /shared/components
+    app-link.{ts,html,css}                  // RouterLink mit A11y-Defaults
+
+
+Standalone Components ohne NgModules. OnPush Change Detection.
+
+2) Routing-Integration (nur Navigationsschale)
+
+Bestehende Routen beibehalten (/, /stocks, /stocks/add, /stocks/:symbol, /portfolio).
+
+AppShellComponent stellt die Layout-Hülle dar und enthält <router-outlet>.
+
+Beim Navigationswechsel: Service, der nach NavigationEnd Fokus auf die erste H1 im <main> setzt (fallback auf #main).
+
+3) ThemeService (Dark-Mode)
+
+/src/app/core/services/theme.service.ts:
+
+API:
+
+export class ThemeService {
+  readonly isDark$: Observable<boolean>;
+  toggle(): void;
+  enableDark(): void;
+  disableDark(): void;
+}
+
+
+Implementierung:
+
+Quelle ist BehaviorSubject<boolean>; initialer Wert aus localStorage.getItem('theme') ('dark'|'light'|null) oder prefers-color-scheme: dark (nur bei fehlender Persistenz).
+
+Setzt/entfernt Klasse dark auf document.documentElement.
+
+Persistiert "dark"/"light".
+
+Server-Safety: Zugriffe auf document/window guards (falls später SSR).
+
+4) Tailwind-Layout & Design-Tokens
+
+In src/styles.css ergänze unter @layer components wiederverwendbare Klassen:
+
+.app-container (Flex, min-h-screen), .app-header (sticky top, border-b), .app-sidenav (w-[var(--sidenav-w,280px)], border-r, bg-neutral), .app-main (grow, p-4 md:p-6), .app-link, .kbd (kleine KBD-Stile für Shortcut-Hinweise), .sr-only (Screenreader only).
+
+Farbsemantik: nutze Tailwind-Token (z. B. text-emerald-600/text-rose-600 erst in späteren Phasen für Badges).
+
+Dark-Mode-Varianten (dark:*) für Header/Sidebar/Hover-Zustände.
+
+5) Sidenav (3 Ebenen) – Interaktion & A11y
+
+Struktur: verschachtelte <ul role="tree"> / <li role="treeitem"> oder Navigation mit <nav> und role="menu" – wähle eine Variante und setze sie konsistent um. Empfehlung: role="tree" für mehrstufige Navigation.
+
+ARIA:
+
+aria-label="Hauptnavigation" am <nav>.
+
+aria-expanded an aufklappbaren Knoten, aria-current="page" am aktiven Link.
+
+Off-canvas: Dialog-Semantik → Container mit role="dialog" und aria-modal="true", aria-labelledby des Sidenav-Titels.
+
+Tastatur:
+
+Roving-tabindex: genau ein fokussierbares Element je Ebene (Tab/Shift+Tab wandert hinein/ hinaus; Pfeile bewegen innerhalb).
+
+Home/End: springen zum ersten/letzten Eintrag.
+
+Enter/Space: aktiviert Link/expandiert Knoten.
+
+Esc: schließt Off-canvas.
+
+Fokus-Trap (kleine Direktive): hält Fokus im Off-canvas, deaktiviert sich, wenn geschlossen.
+
+Visuelle States: Tailwind-Klassen für hover, focus-visible, aria-[current=page] (unterstreichen/Accent-Border).
+
+Konkrete Navigationsknoten (als Startbelegung):
+
+Gruppe „Aktien“
+
+„Alle Aktien“ → /stocks
+
+„Aktie hinzufügen“ → /stocks/add
+
+Gruppe „Portfolio“
+
+„Gesamtübersicht“ → /portfolio
+
+Hinweis: Dynamische Symbole (Ebene-1-Unterpunkte nach Laden) werden erst in Phase 5 bereitgestellt; hier Platzhalter-Einträge mit deaktiviertem Zustand (aria-disabled="true") optional vorsehen.
+
+6) Header
+
+Links: App-Titel „BörsenCockpit“ (führt auf /portfolio).
+
+Rechts: Dark-Mode-Toggle (Schalter mit aria-pressed, Label „Dark-Mode umschalten“), Button zum Öffnen des Off-canvas-Sidenav auf kleinen Screens (aria-controls, aria-expanded).
+
+Shortcut: optional Alt+D für Dark-Toggle (per HostListener), Alt+M für Menü öffnen.
+
+7) Main-Content & Skip-Link
+
+SkipLinkComponent: <a class="skip-link" href="#main">Zum Inhalt springen</a>; nur sichtbar bei Fokus.
+
+<main id="main" role="main" tabindex="-1"> (damit fokussierbar).
+
+In jeder Page-Komponente (stocks-list.page, stock-add.page, portfolio-overview.page) ein H1 am Dokumentanfang (aussagekräftig).
+
+8) Shared AppLink (RouterLink mit A11y-Defaults)
+
+Wrapper um RouterLink mit:
+
+aria-current automatisch bei aktiver Route,
+
+role="link",
+
+visuelle focus-visible-Stile (Tailwind Ring).
+
+Exporte in shared/components und Nutzung in Sidenav.
+
+9) Tests (Jest + Cypress)
+
+Unit (Jest):
+
+ThemeService – Initialisierung (localStorage/Prefers-Dark), toggle(), DOM-Klasse gesetzt/entfernt.
+
+RovingTabindexDirective – Pfeiltasten-Navigation (Knotenanzahl 3–4, Fokus-Zyklen).
+
+FocusTrapDirective – bei Aktivierung bleiben Tab-Zyklen im Container; bei Deaktivierung frei.
+
+E2E (Cypress):
+
+Smoke A11y / Navigation:
+
+Seite lädt, Skip-Link per Tab sichtbar, Enter springt zu #main.
+
+Off-canvas Sidenav auf Mobile-Viewport (cy.viewport('iphone-6')): Toggle öffnet, Esc schließt, Fokus kehrt zum Toggle zurück.
+
+Tastaturnavigation in der Sidenav: Pfeile bewegen Fokus, Enter aktiviert Route, aria-current="page" gesetzt.
+
+Dark-Mode Persistenz: Toggle → html.dark gesetzt; Reload → Zustand bleibt.
+
+Focus-On-Route: Navigiere zu /stocks, prüfe, dass die H1 Fokus erhält (:focus-visible).
+
+10) Akzeptanzkriterien (prüfbar)
+
+ Layout-Shell mit Header, Sidenav, Main, Footer vorhanden; responsiv (lg: Breakpoint) mit Off-canvas.
+
+ Sidenav mit drei Ebenen gemäß Spezifikation (mindestens die drei Zielrouten erreichbar).
+
+ A11y: Skip-Link, aria-current, aria-expanded, Fokusmanagement, Off-canvas mit aria-modal.
+
+ Dark-Mode: Toggle funktioniert, Klasse dark auf <html>, Persistenz in localStorage.
+
+ Tastatur: Roving-tabindex, Home/End, Enter/Space, Esc (Mobile).
+
+ Tests grün (Unit + E2E-Smoke), keine ESLint-Fehler, keine any.
+
+ Kein visuelles Layout-„Jumping“ bei Theme-Wechsel (Transition nur auf Farbe/Hintergrund, keine Layout-Eigenschaften).
+
+11) Selbstprüfung (vom Generator auszuführen, knapp berichten)
+
+Prüfe, dass Sidenav-Zustand (off-canvas offen/geschlossen) über Route-Wechsel konsistent bleibt oder bewusst zurückgesetzt wird (begründet im Code-Kommentar).
+
+Prüfe, dass prefers-color-scheme nur initial greift; Toggle dominiert danach.
+
+Prüfe, dass Off-canvas nicht scrollt den Body (z. B. overflow-hidden auf <body> beim Öffnen und korrektes Revert).
+
+Prüfe, dass Fokus nicht verloren geht beim Routenwechsel (H1-Fokus belegt).
+
+Liste typische Fehlerquellen (fehlendes aria-modal, fehlende focus-visible-Stile, Toggle ohne aria-pressed).
+
+12) Am Ende zwingend ausgeben
+
+Install-/Run-Kommandos (falls neue Dev-Deps für Tests/Types nötig; ansonsten npm run start, npm run e2e).
+
+Vollständige Dateiliste (neu/geändert) mit einzeiliger Zweckbeschreibung je Datei.
+
+Kurzbericht (max. 10 Zeilen) zum Ergebnis der Selbstprüfung (Punkt 11).
+
+Zusatzhinweise
+
+Verwende Tailwind-Utilities konsequent; keine Inline-Styles.
+
+Keine globale Schrift via CDN laden; system fonts genügen.
+
+focus-visible statt :focus für niedrigere „Focus Noise“.
+
+Komponenten sollen präsentational bleiben; keinerlei NgRx-Importe in Layout/Sidenav.
+
+Halte Stile knapp; vermeide harte Pixelwerte außer Sidenav-Breite (variabel per CSS-Var)
