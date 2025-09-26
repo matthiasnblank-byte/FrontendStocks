@@ -1,1 +1,257 @@
+Prompt (Phase 6): Portfolio-Gesamtansicht – Aggregation, Gesamtchart, Top/Flop
 
+Rolle: Du bist ein präziser Code-Generator. In der bestehenden Angular-17-Standalone-App boersencockpit implementierst du das Feature Portfolio: eine Übersichtsseite mit KPI-Karten, einem aggregierten Zeitreihenchart (Bewertungsverlauf des gesamten Portfolios) und Top/Flop-Listen. Verwende ausschließlich die bereits definierten Domänenmodelle (Phase 2), Selectors/Effects (Phase 3) und die Mock-API. Charts werden – konsistent zu Phase 5 – mit Chart.js via ng2-charts umgesetzt.
+
+Wichtig:
+– Keine Änderung der Domänen- und Port-Signaturen aus Phase 2.
+– UI konsumiert nur Selectors; Netz-/Portzugriffe ausschließlich in Effects (bereits vorhanden).
+– Locale de-DE, Währung dynamisch je Symbol, APP_TIMEZONE='Europe/Berlin'.
+– Strenge Typisierung, keine „magischen“ Zahlen; zentrale Konstanten für Ranges/Fenster.
+
+0) Zielbild & UX
+
+Default-Zeitraum: „letzte Wochen“ ≙ 1M (22 Handelstage). Buttons: 1W | 1M | 3M | 6M | 1Y | YTD | MAX.
+
+KPI-Karten (oberhalb Chart):
+
+Investiertes Kapital (EUR)
+
+Aktueller Gesamtwert (EUR)
+
+P&L absolut (EUR, Badge grün/rot)
+
+P&L % (Badge grün/rot)
+
+Gesamtchart: aggregierte Portfolio-Bewertung über den gewählten Zeitraum; Hover/Tooltip zeigt asOf, totalValue, pnlAbs/%.
+
+Top/Flop-Listen: Tages-Performance und Gesamt-Performance (sortiert, begrenzbar n=5).
+
+Leere Zustände: keine Trades → erklärender Placeholder + CTA „Aktie hinzufügen“.
+
+A11y: vollständige Tastaturbedienbarkeit, aria-pressed für Range, aria-live="polite" für KPI-Änderungen.
+
+1) Verzeichnis- & Komponentenstruktur
+/src/app/features/portfolio/pages
+  portfolio-overview.page.{ts,html,css}
+  
+/src/app/features/portfolio/components
+  portfolio-metrics.{ts,html,css}
+  portfolio-chart.{ts,html,css}
+  portfolio-topflop.{ts,html,css}
+
+
+Alle Komponenten Standalone, ChangeDetectionStrategy.OnPush, keine NgModules.
+
+2) Datenfluss & Selektoren (nur Wiederverwendung/Komposition)
+
+Nutze bestehende Selektoren aus Phase 3 und Domänen-Utilities aus Phase 2:
+
+selectAllTrades → computePositions(trades) (Selector-Komposition)
+
+selectQuoteBySymbol(symbol)
+
+selectTimeSeries(symbol, range) (für Einzelsymbole)
+
+selectPortfolioMetrics (falls erstellt) – ansonsten hier kompositorisch ableiten:
+
+positions (FIFO) + aktuelle quotes → totalValue, invested, pnlAbs, pnlPct
+
+Neuer, reiner Selector: selectPortfolioSeries(range: RangeKey):
+
+Aggregiert pro Datum über alle Symbole: sum_{symbols}(heldene Menge zum Datum × ClosePreis am Datum).
+
+Datenquelle: für jedes Symbol die TimeSeries derselben Granularität (Daily) – falls eine Serie fehlt → ignorieren oder per timeSeriesRequested (Effect) nachladen (Cache beachten).
+
+Liefert TimeSeries-ähnliche Struktur für das Portfolio oder null, wenn unzureichende Daten.
+
+Top/Flop-Selektoren:
+
+selectDailyPerformance(n) – sortiert nach changePct der aktuellen PriceQuote.
+
+selectTotalPerformance(n) – Performance relativ zum durchschnittlichen Einstand (nur Positionen mit qty>0).
+
+Wichtig: Aggregation bleibt außerhalb des State (Selector/Memoization), State bleibt serialisierbar.
+
+3) Effects-Orchestrierung (minimal)
+
+Beim Betreten /portfolio:
+
+loadSymbolsRequested (wenn nicht vorhanden),
+
+quotesSnapshotRequested für alle (oder beobachtete) Symbole,
+
+quotesPollStart für die angezeigte Menge,
+
+optionales Prefetch für TimeSeries: für alle Symbole timeSeriesRequested(symbol, range) des aktiven Range (Cache verhindert Doppelaufrufe).
+
+Beim Verlassen: quotesPollStop.
+
+4) Komponenten im Detail
+4.1 portfolio-metrics
+
+Inputs: metrics: { invested:number; totalValue:number; pnlAbs:number; pnlPct:number }.
+
+Darstellung: 4 Karten in einem responsiven Grid (grid-cols-2 md:grid-cols-4).
+
+A11y: aria-live="polite" auf den Werten; Badges mit aria-label „positiv/negativ“.
+
+Formatierung: Angular CurrencyPipe/DecimalPipe (de-DE), Vorzeichen mit Tailwind-Farbsemantik.
+
+4.2 portfolio-chart
+
+Inputs: series?: { asOf:string; totalValue:number; pnlAbs:number; pnlPct:number }[] oder TimeSeries-ähnlich; range: RangeKey.
+
+Chart: Linienchart (Gesamtwert).
+
+Tooltip-Formatter zeigt Datum (lokalisiert) + totalValue, optional pnlAbs/%.
+
+Leerer/Lade-Zustand: Skeleton/Spinner + Hinweis, wenn keine Daten.
+
+Events: (rangeChange) beim Button-Wechsel (Buttons wie in Phase 5, aria-pressed).
+
+4.3 portfolio-topflop
+
+Inputs:
+
+topDaily: { symbol: Symbol; changePct:number; changeAbs:number; price:number }[]
+
+flopDaily: ...
+
+topTotal: { symbol: Symbol; pnlPct:number; pnlAbs:number; qty:number }[]
+
+flopTotal: ...
+
+Darstellung: zwei Sektionen (Daily / Gesamt), jeweils Spalten Top und Flop (je n=5).
+
+Jeder Eintrag als Link zu /stocks/:symbol, mit Badge (grün/rot) und Sekundärwert (Abs/%, Währung je Symbol).
+
+A11y: Listboxes/Landrmarks sauber benannt; aria-label="Top/Flop Tages-Performance" etc.
+
+5) Portfolio-Aggregation (Algorithmik)
+
+Implementiere reine Utility-Funktion (falls noch nicht vorhanden) in domain/utils/portfolio.ts:
+
+computePortfolioSeries(range: RangeKey, positionsByDate: Map<Symbol, Array<{ t:string; qty:number }>>, seriesBySymbol: Map<Symbol, Candle[]>): Array<{ t:string; totalValue:number; invested:number; pnlAbs:number; pnlPct:number }>
+
+Positionsverlauf: Aus Trades je Symbol ein kumulativer Bestand über die Zeit (FIFO bleibt für realizedPnL; für Bewertungsverlauf genügt Nettomenge).
+
+Bewertung: Für jedes Datum t des gemeinsamen Rasters: totalValue = sum(qty_t(symbol) × close_t(symbol)).
+
+invested (Kostenbasis der offenen Positionen) kann über den Zeitraum als konstante Größe pro Datum angenommen werden (vereinfachter MVP) oder als rollierende Größe auf Basis der zu t gehaltenen Einstandspreise. Wähle eine Variante, dokumentiere sie im Kommentar und nutze sie konsistent für pnlAbs/%.
+
+Resampling/Intersection: Verwende die Schnittmenge der vorhandenen Handelstage; falls Symbole unterschiedliche Länge haben, truncate auf den kleinsten gemeinsamen Bereich des aktiven Range.
+
+Stabilität: Zeitachse streng aufsteigend, ISO-8601.
+
+6) Seite portfolio-overview.page
+
+H1: „Portfolio – Gesamtübersicht“.
+
+Ablauf:
+
+Beim Init: Dispatch Orchestrierung (siehe 3).
+
+Selektoren: positions, metrics, portfolioSeries(range), topDaily, flopDaily, topTotal, flopTotal.
+
+Range-Buttons → portfolioRangeChanged(range) + timeSeriesRequested Prefetch.
+
+Layout:
+
+Grid: KPI-Karten oben, darunter Chart (volle Breite), darunter Top/Flop in 2 Spalten (auf md:).
+
+Leerer Zustand, wenn positions leer: Placeholder mit CTA „Aktie hinzufügen“ (Link /stocks/add).
+
+Tastatur/A11y: Range-Buttons per Pfeiltasten erreichbar; Enter/Space schaltet. Fokusmanagement wie in Phase 4.
+
+7) Tailwind-Stil & Dark-Mode
+
+Nutze bestehende Komponenten-Utilities (.card, .badge, .btn).
+
+Dark-Mode für Karten/Listen/Chart-Container (dark:bg-*, dark:text-*).
+
+Visuelle Konsistenz zu Phase 5 (Badges, Ringe, Focus-Stile).
+
+8) Tests
+8.1 Unit (Jest)
+
+Selectors:
+
+selectPortfolioSeries(range) – konstruiere deterministische Mini-Fixtures mit 2 Symbolen, nicht deckungsgleicher Länge; prüfe Intersection, Monotonie, Summenbildung.
+
+selectDailyPerformance / selectTotalPerformance – stabile Sortierung bei Gleichstand (z. B. sekundär nach Symbol).
+
+Utilities:
+
+computePortfolioSeries – Randfälle: leere Trades, nur SELLs, nur ein Symbol, wechselnde Bestände.
+
+Components:
+
+portfolio-metrics zeigt Werte lokalisiert (Komma als Dezimaltrennzeichen).
+
+portfolio-chart rendert Dataset-Länge passend zum Range; Buttons setzen aria-pressed.
+
+portfolio-topflop limitiert korrekt auf n, Links navigieren zu erwarteten URLs.
+
+8.2 E2E (Cypress)
+
+Portfolio-Flow:
+
+Navigiere /portfolio → KPI-Karten erscheinen.
+
+Range-Wechsel (z. B. 1W → 3M) ändert Candles-Anzahl sichtbar.
+
+Top/Flop-Listen zeigen Einträge; Klick auf Top-Daily öffnet /stocks/:symbol.
+
+Dark-Mode-Persistenz wirkt auch hier (Schalter aus Header, Reload).
+
+Leerer Zustand: Entferne alle Trades (oder starte mit leerer Persistenz) → Placeholder sichtbar, CTA leitet nach /stocks/add.
+
+A11y: Range-Buttons sind fokussierbar, aria-pressed korrekt.
+
+Coverage-Ziel: ≥ 90 % für features/portfolio/** und alle neuen Selectors/Utilities.
+
+9) Akzeptanzkriterien (prüfbar)
+
+ KPI-Karten zeigen konsistente Werte (invested, totalValue, pnlAbs/%); Badges farblich korrekt (grün/rot).
+
+ Gesamtchart stellt den Portfoliowert über den gewählten Zeitraum dar; Tooltips lokalisiert.
+
+ Top/Flop: Tages- und Gesamt-Performance, je max. n=5, sortiert und verlinkt.
+
+ Range-Wechsel lädt fehlende Serien per Effects (Cache vermeidet Doppelaufrufe).
+
+ Leere Zustände und Fehlerfälle (fehlende Serien) werden benutzerfreundlich behandelt.
+
+ Tests (Unit + E2E) grün; ESLint ohne Fehler; kein any.
+
+ Polling startet beim Betreten und stoppt beim Verlassen der Seite.
+
+10) Selbstprüfung (vom Generator auszuführen, kurz berichten)
+
+Prüfe, dass keine Chart-Konfiguration oder große Arrays im Store landen (State bleibt klein/serialisierbar).
+
+Prüfe, dass die Portfolio-Aggregation nicht doppelt rechnet (Memoization der Selectors greift bei gleichen Inputs).
+
+Prüfe, dass YTD korrekt ab 1. Januar des laufenden Jahres startet (Zeitzone beachten).
+
+Prüfe, dass Währungsformatierung für USD/CHF/GBP korrekt ist (CurrencyPipe mit Code je Symbol).
+
+Prüfe, dass bei fehlender Serie eines Symbols der Aggregat-Chart robust bleibt (truncate auf Schnittmenge).
+
+Liste typische Fehlerquellen (Off-by-one in Range-Fenstern, fehlerhafte Intersection, %-Berechnung bei invested=0 → Handhabung durch 0-Schutz).
+
+11) Am Ende zwingend ausgeben
+
+Install-/Run-/Test-Kommandos (falls keine neuen Deps: npm run start, npm run test, npm run e2e).
+
+Vollständige Dateiliste (neu/geändert) mit einzeiliger Zweckbeschreibung je Datei.
+
+Kurzbericht (max. 10 Zeilen) zu den Ergebnissen der Selbstprüfung (Punkt 10).
+
+Zusatzhinweise
+
+Halte die Aggregation deterministisch (sortierte Zeitachsen, stabile Rundungen in Tooltips).
+
+Keine Extralibs für Datum/Zeit nötig; bleibe bei ISO-Strings + Formatierung im View.
+
+Dokumentiere im Code die gewählte Kostenbasis-Strategie (konstant vs. rollierend) für invested im Chart.
