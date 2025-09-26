@@ -1,0 +1,14 @@
+#!/usr/bin/env sh
+set -e
+
+npm run build
+npm run test:cov
+
+case "${HUSKY_SKIP_E2E:-}" in
+  1|true|TRUE)
+    echo "Skipping e2e tests due to HUSKY_SKIP_E2E flag"
+    ;;
+  *)
+    npm run e2e
+    ;;
+esac

@@ -6,18 +6,20 @@ import { ActivatedRoute, convertToParamMap } from '@angular/router';
 
 jest.mock(
   'ng2-charts',
-  () => ({
-    BaseChartDirective: class {},
+  (): { BaseChartDirective: new () => unknown } => ({
+    BaseChartDirective: class {}
   }),
-  { virtual: true },
+  { virtual: true }
 );
+
+const existingCrypto = (globalThis as typeof globalThis & { crypto?: Crypto }).crypto;
 
 Object.defineProperty(globalThis, 'crypto', {
   value: {
-    ...(globalThis as any).crypto,
-    randomUUID: () => 'test-id',
+    ...existingCrypto,
+    randomUUID: (): string => 'test-id'
   },
-  configurable: true,
+  configurable: true
 });
 
 import { StockDetailPageComponent } from './stock-detail.page';
@@ -44,11 +46,11 @@ describe('StockDetailPageComponent', () => {
     price: 120,
     changeAbs: 2,
     changePct: 1.8,
-    asOf: '2024-01-01T00:00:00.000Z',
+    asOf: '2024-01-01T00:00:00.000Z'
   };
   const series: TimeSeries = { symbol, candles: [] };
 
-  beforeEach(() => {
+  beforeEach((): void => {
     TestBed.configureTestingModule({
       providers: [
         provideMockStore({
@@ -59,35 +61,33 @@ describe('StockDetailPageComponent', () => {
             { selector: selectPositions, value: [] },
             { selector: selectTimeSeries(symbol, '1M'), value: series },
             { selector: selectTimeSeriesLoading(symbol, '1M'), value: false },
-            { selector: selectTimeSeriesError(symbol, '1M'), value: null },
-          ],
+            { selector: selectTimeSeriesError(symbol, '1M'), value: null }
+          ]
         }),
         {
           provide: ActivatedRoute,
-          useValue: { paramMap: of(convertToParamMap({ symbol: 'SAP' })) },
+          useValue: { paramMap: of(convertToParamMap({ symbol: 'SAP' })) }
         },
         {
           provide: DestroyRef,
-          useValue: { onDestroy: () => undefined },
-        },
-      ],
+          useValue: { onDestroy: (): void => undefined }
+        }
+      ]
     });
     store = TestBed.inject(MockStore);
     jest.spyOn(store, 'dispatch');
     component = TestBed.runInInjectionContext(() => new StockDetailPageComponent());
   });
 
-  it('dispatches time series request when range changes', async () => {
+  it('dispatches time series request when range changes', async (): Promise<void> => {
     const dispatchSpy = jest.spyOn(store, 'dispatch');
     dispatchSpy.mockClear();
     component['handleRangeChange']('1W');
     await Promise.resolve();
-    expect(dispatchSpy).toHaveBeenCalledWith(
-      TimeSeriesActions.timeSeriesRequested({ symbol, range: '1W' })
-    );
+    expect(dispatchSpy).toHaveBeenCalledWith(TimeSeriesActions.timeSeriesRequested({ symbol, range: '1W' }));
   });
 
-  it('dispatches addTradeRequested when submitting a trade', () => {
+  it('dispatches addTradeRequested when submitting a trade', (): void => {
     const dispatchSpy = jest.spyOn(store, 'dispatch');
     dispatchSpy.mockClear();
     component['handleTradeSubmit']({
@@ -95,12 +95,12 @@ describe('StockDetailPageComponent', () => {
       side: 'BUY',
       quantity: 1,
       price: 100,
-      timestamp: '2024-01-01T00:00:00.000Z',
+      timestamp: '2024-01-01T00:00:00.000Z'
     } as TradeFormValue);
     expect(dispatchSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         type: TradesActions.addTradeRequested.type,
-        tradeInput: expect.objectContaining({ symbol }),
+        tradeInput: expect.objectContaining({ symbol })
       })
     );
   });

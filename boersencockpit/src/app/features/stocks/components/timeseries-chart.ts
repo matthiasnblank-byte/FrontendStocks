@@ -12,7 +12,7 @@ import { TimeSeries } from '../../../domain/models/candle';
 
 const RANGE_KEYS: readonly RangeKey[] = ['1W', '1M', '3M', '6M', '1Y', 'YTD', 'MAX'];
 
-const currencyFormatter = (currency: 'EUR' | 'USD' | 'CHF' | 'GBP') =>
+const currencyFormatter = (currency: 'EUR' | 'USD' | 'CHF' | 'GBP'): Intl.NumberFormat =>
   new Intl.NumberFormat('de-DE', { style: 'currency', currency, maximumFractionDigits: 2 });
 
 const dateFormatter = new Intl.DateTimeFormat('de-DE', { dateStyle: 'short' });
@@ -126,15 +126,15 @@ export class TimeseriesChartComponent implements OnChanges {
         legend: { display: false },
         tooltip: {
           callbacks: {
-            label: (context: { parsed: { y: number } }) => {
+            label: (context: { parsed: { y: number } }): string => {
               const price = currencyFormat.format(Number(context.parsed.y));
               return `Preis: ${price}`;
             },
-            afterBody: (items: readonly { parsed: { x: number } }[]) => {
+            afterBody: (items: readonly { parsed: { x: number } }[]): readonly string[] => {
               const tradeTooltip = this.buildTradeTooltip(items[0]?.parsed.x ?? null);
               return tradeTooltip ? [tradeTooltip] : [];
             },
-            title: (items: readonly { parsed: { x: number } }[]) => {
+            title: (items: readonly { parsed: { x: number } }[]): string => {
               const x = items[0]?.parsed.x;
               if (typeof x === 'number') {
                 return tooltipDateFormatter.format(new Date(x));
@@ -151,7 +151,7 @@ export class TimeseriesChartComponent implements OnChanges {
         x: {
           type: 'linear',
           ticks: {
-            callback: (value: number | string) => {
+            callback: (value: number | string): string => {
               if (typeof value === 'number') {
                 return dateFormatter.format(new Date(value));
               }
@@ -166,7 +166,7 @@ export class TimeseriesChartComponent implements OnChanges {
         },
         y: {
           ticks: {
-            callback: (value: number | string) => currencyFormat.format(Number(value)),
+            callback: (value: number | string): string => currencyFormat.format(Number(value)),
             maxTicksLimit: 6,
           },
           grid: {

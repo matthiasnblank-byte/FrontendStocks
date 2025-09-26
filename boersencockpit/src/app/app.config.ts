@@ -15,6 +15,6 @@ export const appConfig: ApplicationConfig = {
     { provide: LOCALE_ID, useValue: 'de-DE' },
     { provide: DEFAULT_CURRENCY_CODE, useValue: 'EUR' },
     { provide: APP_TIMEZONE, useValue: 'Europe/Berlin' },
-    PRICE_API_PROVIDER
+    ...PRICE_API_PROVIDER
   ],
 };
