@@ -1,0 +1,14 @@
+<a
+  class="app-link"
+  role="link"
+  [routerLink]="routerLink ?? undefined"
+  [queryParams]="queryParams ?? undefined"
+  [fragment]="fragment ?? undefined"
+  [routerLinkActiveOptions]="routerLinkActiveOptions"
+  routerLinkActive
+  (click)="onActivate()"
+  #rla="routerLinkActive"
+  [attr.aria-current]="rla.isActive ? 'page' : null"
+>
+  <ng-content></ng-content>
+</a>

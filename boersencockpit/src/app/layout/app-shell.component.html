@@ -1,0 +1,38 @@
+<div class="app-container">
+  <app-skip-link></app-skip-link>
+  <app-header [isSidenavOpen]="isSidenavOpen()" (menuToggle)="toggleSidenav()"></app-header>
+
+  <div class="flex min-h-0 flex-1">
+    <aside class="hidden h-full lg:flex">
+      <app-sidenav headingId="sidenav-desktop" (navigate)="handleSidenavNavigation()"></app-sidenav>
+    </aside>
+
+    <div class="flex min-h-0 flex-1 flex-col">
+      <main id="main" role="main" tabindex="-1" class="app-main">
+        <router-outlet></router-outlet>
+      </main>
+      <footer class="app-footer" role="contentinfo">
+        <p>© {{ currentYear }} BörsenCockpit – Strukturphase</p>
+      </footer>
+    </div>
+  </div>
+</div>
+
+<ng-container *ngIf="isSidenavOpen() && !isDesktop()">
+  <div class="fixed inset-0 z-40 bg-neutral-900/60 backdrop-blur-sm" aria-hidden="true" (click)="closeSidenav()"></div>
+  <div
+    class="fixed inset-y-0 left-0 z-50 flex w-full max-w-xs"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="sidenav-mobile-heading"
+  >
+    <div class="flex h-full flex-1" [appFocusTrap]="true">
+      <app-sidenav
+        id="sidenav-mobile"
+        headingId="sidenav-mobile-heading"
+        class="w-full"
+        (navigate)="handleSidenavNavigation()"
+      ></app-sidenav>
+    </div>
+  </div>
+</ng-container>

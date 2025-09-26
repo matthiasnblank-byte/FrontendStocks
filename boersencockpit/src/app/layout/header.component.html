@@ -1,0 +1,63 @@
+<header class="app-header" role="banner">
+  <div class="flex items-center gap-3">
+    <button
+      type="button"
+      class="inline-flex items-center gap-2 rounded-md border border-neutral-300 bg-white/70 px-3 py-2 text-sm font-medium text-neutral-700 shadow-sm transition hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:border-neutral-700 dark:bg-neutral-900/70 dark:text-neutral-200 dark:hover:bg-neutral-800 dark:focus-visible:ring-neutral-300 dark:focus-visible:ring-offset-neutral-900 lg:hidden"
+      aria-label="Hauptmenü öffnen"
+      aria-controls="sidenav-mobile"
+      [attr.aria-expanded]="isSidenavOpen"
+      (click)="openMenu()"
+    >
+      <span aria-hidden="true" class="h-5 w-5">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-5 w-5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </span>
+      <span>Menü</span>
+      <span class="hidden items-center gap-1 text-xs text-neutral-500 dark:text-neutral-400 sm:flex">
+        <span class="kbd">Alt</span>
+        <span class="kbd">M</span>
+      </span>
+    </button>
+
+    <a
+      routerLink="/portfolio"
+      class="text-lg font-semibold tracking-tight text-neutral-900 transition hover:text-neutral-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-neutral-100 dark:hover:text-neutral-300 dark:focus-visible:ring-neutral-300 dark:focus-visible:ring-offset-neutral-900 sm:text-xl"
+    >
+      BörsenCockpit
+    </a>
+  </div>
+
+  <div class="flex items-center gap-4">
+    <button
+      type="button"
+      class="inline-flex items-center gap-2 rounded-md border border-neutral-300 bg-white/70 px-3 py-2 text-sm font-medium text-neutral-700 shadow-sm transition hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:border-neutral-700 dark:bg-neutral-900/70 dark:text-neutral-200 dark:hover:bg-neutral-800 dark:focus-visible:ring-neutral-300 dark:focus-visible:ring-offset-neutral-900"
+      [attr.aria-pressed]="(isDark$ | async) ? 'true' : 'false'"
+      aria-label="Dark-Mode umschalten"
+      (click)="toggleTheme()"
+    >
+      <span aria-hidden="true" class="h-5 w-5">
+        <ng-container *ngIf="isDark$ | async; else sunIcon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-5 w-5">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"
+            />
+          </svg>
+        </ng-container>
+        <ng-template #sunIcon>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-5 w-5">
+            <circle cx="12" cy="12" r="4" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 2v2m0 16v2m10-10h-2M6 12H4m15.07 7.07-1.42-1.42M6.35 6.35 4.93 4.93m0 14.14 1.42-1.42M17.66 6.34l1.41-1.41" />
+          </svg>
+        </ng-template>
+      </span>
+      <span>Dark-Mode</span>
+      <span class="hidden items-center gap-1 text-xs text-neutral-500 dark:text-neutral-400 sm:flex">
+        <span class="kbd">Alt</span>
+        <span class="kbd">D</span>
+      </span>
+    </button>
+  </div>
+</header>

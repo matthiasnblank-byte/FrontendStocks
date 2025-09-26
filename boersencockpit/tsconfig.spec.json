@@ -5,7 +5,8 @@
     "outDir": "./out-tsc/spec",
     "types": ["jest", "node"],
     "resolveJsonModule": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "emitDecoratorMetadata": true
   },
   "files": [
     "src/setup-jest.ts"

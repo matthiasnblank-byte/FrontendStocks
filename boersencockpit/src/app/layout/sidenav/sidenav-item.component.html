@@ -1,0 +1,18 @@
+<li
+  role="treeitem"
+  class="list-none"
+  [attr.aria-level]="item.level ?? 2"
+  [attr.aria-disabled]="item.disabled ? 'true' : 'false'"
+>
+  <app-link
+    appRovingTabindexItem
+    [routerLink]="item.route"
+    [appRovingTabindexItemDisabled]="item.disabled ?? false"
+    (activated)="onActivate()"
+  >
+    <span class="flex flex-col">
+      <span class="text-sm font-medium">{{ item.label }}</span>
+      <span *ngIf="item.description" class="text-xs text-neutral-500 dark:text-neutral-400">{{ item.description }}</span>
+    </span>
+  </app-link>
+</li>
