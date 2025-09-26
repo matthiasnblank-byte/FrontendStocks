@@ -1,1 +1,343 @@
+Prompt (Phase 2): Domänenmodell, Validierung, Ports & Mock-API
 
+Rolle: Du bist ein präziser Code-Generator. Erzeuge in der bestehenden Angular-17-Standalone-Codebasis boersencockpit ein sauberes Domänenmodell (TypeScript) mit formaler Validierung (Zod), eine klare API-Abstraktion (Port) sowie eine Mock-Implementierung auf Basis lokaler Fixtures. Schreibe vollständige Unit-Tests (Jest) für Typen, Parser/Validatoren und die Mock-API (inkl. deterministischer Seeds).
+
+Wichtig: Keine UI in Phase 2. Keine NgRx-Integration (kommt Phase 3). Alles strikt typed; kein any.
+
+0) Randbedingungen & Qualität
+
+TypeScript strict (bereits aktiv).
+
+Nutze keine any/unknown in öffentlichen Signaturen.
+
+Führe Zod ein (zod@^3) für Runtime-Validierung/Parsing externen Inputs (JSON).
+
+Ergänze in tsconfig für App/Tests: "resolveJsonModule": true, "esModuleInterop": true.
+
+Alle Datumsangaben ISO-8601 (YYYY-MM-DDTHH:mm:ss.sssZ), Zeitzone Europe/Berlin wird erst in Phase 5 formatiert; hier ausschließlich ISO-Strings.
+
+Jeder Parser liefert typisierte Ergebnisse oder wirft gefangene Fehler mit aussagekräftiger Message (ZodError → AppError).
+
+1) Verzeichnisstruktur (neu/ergänzt)
+/src/app
+  /domain
+    models/
+    schemas/
+    utils/
+  /core
+    api/
+      price-api.port.ts
+      mock-price-api.service.ts
+    errors/
+      app-error.ts
+  /assets
+    mock-data/
+      quotes/        // JSON-Fixtures (OHLC)
+      symbols.json   // bekannte Symbole & Namen
+
+2) Domänentypen (TypeScript, exakte Signaturen)
+
+Erzeuge folgende Typen in src/app/domain/models/ (alle Felder readonly, wo sinnvoll):
+
+// symbol.brand.ts
+export type Symbol = string & { readonly __brand: 'Symbol' }; // nominal branding helper
+export const asSymbol = (s: string): Symbol => s as Symbol;
+
+// trade.ts
+export interface Trade {
+  readonly id: string;                 // UUID v4
+  readonly symbol: Symbol;
+  readonly side: 'BUY' | 'SELL';
+  readonly quantity: number;           // > 0
+  readonly price: number;              // EUR, >= 0
+  readonly timestamp: string;          // ISO 8601 (UTC)
+  readonly note?: string;
+}
+
+// position.ts
+export interface Position {
+  readonly symbol: Symbol;
+  readonly totalQuantity: number;      // Nettomenge (BUY-SELL)
+  readonly avgBuyPrice?: number;       // nur falls totalQuantity > 0
+  readonly realizedPnL: number;        // EUR
+}
+
+// quote.ts
+export interface PriceQuote {
+  readonly symbol: Symbol;
+  readonly price: number;              // Last
+  readonly changeAbs: number;
+  readonly changePct: number;
+  readonly asOf: string;               // ISO 8601
+}
+
+// candle.ts
+export interface Candle {
+  readonly t: string;                  // ISO 8601
+  readonly o: number;
+  readonly h: number;
+  readonly l: number;
+  readonly c: number;
+  readonly v?: number;
+}
+
+export interface TimeSeries {
+  readonly symbol: Symbol;
+  readonly candles: readonly Candle[];
+}
+
+// portfolio-snapshot.ts
+export interface PortfolioSnapshot {
+  readonly asOf: string;               // ISO 8601
+  readonly totalValue: number;         // EUR
+  readonly invested: number;           // EUR (Cost Basis der offenen Positionen)
+  readonly pnlAbs: number;             // EUR
+  readonly pnlPct: number;             // %
+}
+
+3) Zod-Schemata & Parser (Runtime-Validierung)
+
+In src/app/domain/schemas/:
+
+Ziele:
+
+robuste Parser parseX(json) → typisierte Modelle,
+
+Guards isX(value): value is X,
+
+Fehlermeldungen mit Pfad/Grund.
+
+Erzeuge Schemata:
+
+symbolSchema (non-empty, uppercase A-Z0-9, . und - erlaubt), Ausgabe via asSymbol.
+
+tradeSchema
+
+quoteSchema
+
+candleSchema + timeSeriesSchema
+
+portfolioSnapshotSchema (wird in Phase 6 genutzt; hier Tests nur auf Parser-Form).
+
+Hilfsfunktion: isoStringSchema (validiert per new Date(v).toString() !== 'Invalid Date' und Z-Suffix).
+
+Exports:
+
+parseTrade, parseTradesArray
+
+parseQuote, parseQuotesArray
+
+parseTimeSeries
+
+isTrade, isQuote, isCandle, isTimeSeries
+
+4) Fehlerbehandlung
+
+In src/app/core/errors/app-error.ts:
+
+export class AppError extends Error {
+  readonly cause?: unknown;
+  readonly code: string;
+  constructor(message: string, code = 'APP/UNKNOWN', cause?: unknown) {
+    super(message);
+    this.name = 'AppError';
+    this.code = code;
+    this.cause = cause;
+  }
+}
+
+export const wrapZodError = (e: unknown, code: string, context?: string) =>
+  new AppError(
+    `Validation failed${context ? ` in ${context}` : ''}`,
+    code,
+    e
+  );
+
+
+Alle Parser/Services fangen ZodError und werfen AppError mit code (z. B. VAL/TRADE, VAL/TIMESERIES).
+
+5) API-Port (Abstraktion)
+
+In src/app/core/api/price-api.port.ts eine reine Schnittstelle + Hilfstypen:
+
+import { Observable } from 'rxjs';
+import { Symbol } from '../../domain/models/symbol.brand';
+import { PriceQuote, TimeSeries } from '../../domain/models/...';
+
+export type RangeKey = '1W' | '1M' | '3M' | '6M' | '1Y' | 'YTD' | 'MAX';
+
+export interface ListSymbol {
+  readonly symbol: Symbol;
+  readonly name: string;
+  readonly currency: 'EUR' | 'USD' | 'CHF' | 'GBP';
+  readonly exchange?: string;
+}
+
+export interface PriceApiPort {
+  listSymbols(): Promise<readonly ListSymbol[]>;
+
+  getQuotes(symbols: readonly Symbol[]): Promise<readonly PriceQuote[]>;
+
+  getTimeSeries(
+    symbol: Symbol,
+    range: RangeKey
+  ): Promise<TimeSeries>;
+
+  // optionaler Live-Stream; Mock liefert simulierte Ticks
+  streamQuotes(symbols: readonly Symbol[]): Observable<PriceQuote>;
+}
+
+
+Hinweis: Keine Implementierungsdetails in der Port-Datei. Spätere echte Provider (z. B. Alpha Vantage) implementieren exakt diese Signaturen.
+
+6) Mock-Datenquelle (Fixtures + Service)
+6.1 Fixtures
+
+src/assets/mock-data/symbols.json:
+Liste von 5–8 Einträgen, z. B. AAPL, MSFT, AMZN, SAP, DTE, ADS, mit name, currency (EUR für DAX-Titel, sonst USD), optional exchange.
+
+Für jedes Symbol eine Datei unter src/assets/mock-data/quotes/<SYMBOL>.json mit folgenden Eigenschaften:
+
+Tageskerzen (Daily) der letzten 400 Handelstage (synthetisch, aber realistisch; monotone Zeitachse, Wochenende aussparen oder flache Bewegung).
+
+Felder t,o,h,l,c,v (ISO-Zeitpunkt 00:00:00Z).
+
+Die letzten 20 Werte sollen leichte Volatilität zeigen (RNG mit Seed, damit stabil).
+
+src/app/domain/utils/seeded-rng.ts: deterministischer RNG (Mulberry32 o. ä.) für Reproducibility.
+
+6.2 Service
+
+In src/app/core/api/mock-price-api.service.ts:
+
+Implementiert PriceApiPort.
+
+Liest symbols.json via HttpClient (Achtung: Assets-Pfad in Tests mocken).
+
+Liest <SYMBOL>.json via HttpClient.
+
+getQuotes(symbols):
+
+nimmt den letzten Candle Close als price,
+
+berechnet changeAbs/changePct gegenüber vorletztem Candle,
+
+asOf = letzter t.
+
+getTimeSeries(symbol, range):
+
+schneidet die Candles entsprechend RangeKey zurecht (heuristische Fenster: 1W=5, 1M=22, 3M=66, 6M=132, 1Y=264, YTD=ab Jan 1, MAX=alles).
+
+streamQuotes(symbols):
+
+interval(2000) + deterministische, kleine Random-Walk-Del­tas um den letzten Close (Seed pro Symbol), Map auf PriceQuote.
+
+Kein setInterval-Leak: bei unsubscribe sauber stoppen.
+
+Fehlerfälle (fehlende Datei, leere Candles) → AppError mit Code MOCK/NOT_FOUND bzw. VAL/TIMESERIES.
+
+7) Domain-Utilities (rein funktional)
+
+In src/app/domain/utils/portfolio.ts:
+
+computePositions(trades: readonly Trade[]): readonly Position[]
+
+FIFO-Realisation für realizedPnL (SELL reduziert Bestände; Realisations-PNL = (Sell-Preis − gewichteter Kaufpreis) × verkaufte Menge).
+
+computeSnapshot(dateISO: string, positions: readonly Position[], quotes: readonly PriceQuote[]): PortfolioSnapshot
+
+totalValue = Summe (qty>0 ? qty × quote.price : 0)
+
+invested = Summe (qty>0 ? qty × avgBuyPrice : 0)
+
+pnlAbs/pnlPct daraus ableiten.
+
+Strikte Tests (siehe Abschnitt 8) stellen Korrektheit sicher.
+
+8) Tests (Jest)
+
+Parser/Validatoren:
+
+gültige/ungültige Beispiele pro Schema (Grenzwerte: quantity<=0, price<0, ungültiges ISO, Symbol in Kleinschreibung etc.).
+
+Snapshot der ZodError-Struktur wird nicht gefordert; nur gezielte Assertions auf message/code.
+
+Mock-API:
+
+listSymbols() liefert erwartete Menge & Struktur.
+
+getTimeSeries():
+
+Range-Schnitte korrekt (z. B. 1M=22 Candles, falls MAX≥22).
+
+Candles zeitlich aufsteigend und valide (o≤h, l≤h, l≤o, l≤c).
+
+getQuotes():
+
+price = letzter Close; changeAbs = last.c - prev.c; changePct = (changeAbs / prev.c) * 100.
+
+streamQuotes():
+
+via FakeSchedulers (rxjs/testing) deterministische Sequenz für erstes Symbol prüfen; unsubscribe stoppt.
+
+Domain-Utilities (Portfolio):
+
+BUY→SELL Sequenz (z. B. 10 @ 100€, 5 @ 120€, SELL 8 @ 130€) mit erwarteten avgBuyPrice, realizedPnL, Restmenge.
+
+Snapshot-Berechnung mit gemockten Quotes (Ränder: leere Positionen, reine SELLs, identische Preise).
+
+Coverage-Ziel: mind. 90 % für domain/ und core/api/.
+
+9) Package-Ergänzungen & Skripte
+
+Dependencies: "zod": "^3.x"
+
+Tests dürfen Node-APIs verwenden; keine Netzwerkanfragen.
+
+Update package.json optional um:
+
+"test:cov": "jest --coverage".
+
+10) Akzeptanzkriterien (prüfbar)
+
+ Alle Modelle und Schemata existieren und sind exportiert.
+
+ PriceApiPort ist implementierungsfrei; MockPriceApiService implementiert ihn vollständig.
+
+ Fixtures vorhanden (symbols.json, pro Symbol eine OHLC-Datei).
+
+ getQuotes, getTimeSeries, streamQuotes funktionieren gegen Fixtures; berechnete Felder korrekt.
+
+ Parser/Validatoren fangen fehlerhafte Inputs ab und werfen AppError mit Codes.
+
+ Jest-Suite grün, Coverage für betroffene Ordner ≥ 90 %.
+
+ Kein any in öffentlichen Typen/Exports.
+
+ Zeitreihen streng ISO-8601, aufsteigend sortiert.
+
+11) Selbstprüfung (durch den Generator, kurz berichten)
+
+Prüfe, dass resolveJsonModule aktiviert ist und Imports aus /assets/mock-data in Tests nicht hart aus dem Netzwerk laden (nutze HttpClientTestingModule oder Dateimocks).
+
+Prüfe deterministische streamQuotes-Sequenzen (gleicher Seed ⇒ gleiche Ticks).
+
+Prüfe, dass alle Ranges einen nicht-leeren Ausschnitt liefern, soweit MAX ausreichend Daten hat; sonst explizite, getestete Fehlermeldung.
+
+Melde typische Fehlerquellen (Zod-Coercion, ISO-Parsing, Off-by-one in Range-Fenstern).
+
+12) Am Ende zwingend ausgeben
+
+Kurze Install-/Test-Kommandos (z. B. npm i zod --save, npm run test:cov).
+
+Vollständige Dateiliste (neu/geändert) mit einzeiliger Zweckbeschreibung je Datei.
+
+Kurzbericht (max. 10 Zeilen) zur Selbstprüfung aus Punkt 11 (Ergebnis/Fazit).
+
+Zusatzhinweise
+
+Keine UI erzeugen. Keine NgRx.
+
+Parser/Utilities sind framework-agnostisch (reine TS-Funktionen), um in Phase 3+ problemlos wiederverwendet zu werden.
+
+Bevorzugt Pure Functions in domain/utils, keine Seiteneffekte.
