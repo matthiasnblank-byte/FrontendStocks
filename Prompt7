@@ -1,1 +1,309 @@
+Prompt (Phase 7): Externe Datenquelle – AlphaVantage-Adapter, Caching, Retry/Backoff, DI-Switch
 
+Rolle: Du bist ein präziser Code-Generator. In der bestehenden Angular-17-App boersencockpit implementierst du für den Port PriceApiPort eine Produktions-taugliche Adapter-Implementierung AlphaVantageApiService (HTTP-basiert) mit:
+
+sauberer Konfiguration (API-Key aus environment.ts / .env),
+
+Rate-Limit-Respekt (Client-seitiger Throttle/Queue),
+
+Exponential Backoff mit Jitter und Fehlerabbildung in AppError,
+
+In-Memory-Cache (TTL) + optionalem Persistenz-Cache (IndexedDB/localStorage; feature-toggled),
+
+Mapping/Validierung der API-Antworten mittels der Zod-Parser aus Phase 2,
+
+vollständigen Unit-Tests (inkl. HTTP-Mocks) und README-Erweiterung.
+
+Wichtig:
+– Signaturen von PriceApiPort aus Phase 2 sind bindend; keine Änderungen.
+– UI konsumiert weiterhin nur Selectors; HTTP-Zugriffe ausschließlich in Effects/Services.
+– Keine API-Keys hardcodieren; nur über environment/.env.
+– Strenge Typisierung, kein any.
+
+0) Abhängigkeiten & Rahmen
+
+Verwende bestehendes HttpClient. Keine zusätzliche HTTP-Lib.
+
+Ergänze (falls noch nicht vorhanden) eine kleine UUID-Lib oder nutze bereits vorhandene Hilfen für IDs (nur für interne Marker; Port-Signaturen unverändert).
+
+Keine weiteren Dritt-Libs für Backoff/Rate-Limit; implementiere leichtgewichtige Utilities selbst (RxJS + Timer).
+
+1) Konfiguration
+1.1 environment.ts / environment.prod.ts
+export const environment = {
+  production: false,
+  dataSource: 'mock' as 'mock' | 'alpha', // Umschalter
+  alphaVantage: {
+    apiKey: '',                  // leer im Repo
+    baseUrl: 'https://www.alphavantage.co/query',
+    // Rate Limits (frei konfigurierbar; Default basiert auf Free Tier)
+    maxRequestsPerMinute: 5,
+    minRequestSpacingMs: 15000,  // 15s Schutz (clientseitig)
+    cacheTtlMs: 5 * 60 * 1000,   // 5 Minuten
+    enablePersistentCache: false // optionaler Persistenz-Cache (IndexedDB/localStorage)
+  }
+} as const;
+
+
+README erweitern (siehe unten), .env-Beispiel ohne Key im Repo.
+
+Prod: dataSource: 'alpha', apiKey via Build-Time-Env/Secrets (nicht committen).
+
+1.2 DI-Umschaltung (Provider)
+
+In einem zentralen Provider-Setup (z. B. /src/app/core/api/index.ts):
+
+export const PRICE_API_PROVIDER = {
+  provide: PriceApiPortToken, // OpaqueToken für Port
+  useFactory: (env: typeof environment, http: HttpClient, cache: CacheService) =>
+    env.dataSource === 'alpha'
+      ? new AlphaVantageApiService(http, env.alphaVantage, cache)
+      : new MockPriceApiService(http),
+  deps: [ENVIRONMENT, HttpClient, CacheService]
+};
+
+
+Falls du bereits provideEnvironment() nutzt, halte dich an das bestehende Pattern.
+
+2) Service: AlphaVantageApiService
+
+Pfad: /src/app/core/api/alphavantage-api.service.ts
+Implementiert: PriceApiPort
+
+2.1 Unterstützte Endpunkte (Alpha Vantage)
+
+Aktueller Quote: function=GLOBAL_QUOTE&symbol=...&apikey=...
+
+Zeitreihe (Daily): function=TIME_SERIES_DAILY_ADJUSTED&symbol=...&outputsize=compact|full&apikey=...
+
+Mapping auf unser TimeSeries (Close = adjusted close oder close; dokumentiere Wahl, s. u.).
+
+Hinweis: Es gibt keine echte „Batch-Quotes“ im Free Tier. Für mehrere Symbole serialisieren/queue-n (Rate-Limit).
+
+2.2 Mapping & Validierung
+
+GLOBAL_QUOTE → PriceQuote
+
+price = 05. price (number)
+
+changeAbs = 09. change
+
+changePct = 10. change percent (ohne % parsen)
+
+asOf = 07. latest trading day als ISO 00:00:00Z (auf UTC normieren)
+
+Zod-Parser verwenden (Phase 2), Fehler in AppError (VAL/QUOTE) wrappen.
+
+TIME_SERIES_DAILY_ADJUSTED → TimeSeries
+
+JSON-Schlüssel Time Series (Daily) → Map → Array von Candle mit Feldern:
+
+t = Datum (ISO T00:00:00Z)
+
+o = 1. open, h = 2. high, l = 3. low, c = Wahl: 5. adjusted close (begründet)
+
+v = 6. volume (number)
+
+Sortierung streng aufsteigend, Lücken (Wochenenden) bleiben; Parser/Schema verwenden (VAL/TIMESERIES).
+
+Dokumentation im Code: Für Portfolio-Bewertungen ist adjusted close vorzuziehen (Dividenden/Splits berücksichtigt); setze dies explizit um und vermerke es in Kommentaren & README.
+
+2.3 Range-Ableitung
+
+RangeKey → outputsize:
+
+1W|1M|3M|6M|1Y|YTD → compact
+
+MAX → full
+
+Nach Erhalt: lokal auf gewünschte Fenstergröße trimmen (wie in Phase 2/3 definiert).
+
+2.4 Caching
+
+In-Memory-Cache (CacheService neu, s. Abschnitt 3):
+
+Key: ${endpoint}:${symbol}:${outputsize}
+
+TTL: alphaVantage.cacheTtlMs (Default 5 Min).
+
+Persistenter Cache (optional):
+
+Wenn enablePersistentCache=true: Spiegel in localStorage oder IndexedDB (kleiner Wrapper im CacheService).
+
+Serde: JSON, Version/Schema-Key, asOf.
+
+2.5 Rate-Limit & Queue
+
+Client-seitige Begrenzung:
+
+Eine einfache Anfrage-Queue: maximal eine aktive Anfrage; Abstand zwischen Starts ≥ minRequestSpacingMs.
+
+Bei getQuotes(symbols[]): sequentiell je Symbol (kein Burst).
+
+Backoff/Jitter:
+
+Für HTTP-429/5xx: exponentieller Backoff: base=1000ms, factor=2, max=15000ms, Full Jitter.
+
+Max. Versuche: 3 (konfigurierbar).
+
+Fehler → AppError mit Code HTTP/RATE_LIMIT oder HTTP/UPSTREAM.
+
+2.6 Fehlerabbildung (AppError)
+
+4 Kategorien:
+
+HTTP/CLIENT (4xx ≠ 429),
+
+HTTP/RATE_LIMIT (429),
+
+HTTP/UPSTREAM (5xx, Netzwerk),
+
+VAL/QUOTE oder VAL/TIMESERIES (Parsing)
+
+Enthält cause (Originalfehler/Response) und Kontext (symbol, endpoint).
+
+2.7 Währung & Börsenplätze
+
+ListSymbol.currency kommt aus deinen Symbol-Stammdaten (Phase 2 Fixtures). AlphaVantage liefert USD für US-Titel.
+
+Conversion ist optional und nicht Teil des MVP:
+
+Gib Quotes/Series in API-Währung zurück; Views formatieren gemäß ListSymbol.currency.
+
+Notiere im README: „Wenn currency ≠ API-Währung, ist die Anzeige nominal; Portfolio-Aggregation bleibt konsistent, sofern alle Werte in der gleichen Währung bewertet werden.“
+
+(Optionaler Hook/Interface FxConverterPort als Platzhalter; keine Implementierung in Phase 7.)
+
+3) CacheService (leichtgewichtig)
+
+Pfad: /src/app/core/services/cache.service.ts
+
+API:
+
+export interface CacheEntry<T> { readonly asOf: number; readonly ttl: number; readonly value: T; }
+export class CacheService {
+  get<T>(key: string): T | null;
+  set<T>(key: string, value: T, ttlMs: number): void;
+  hasFresh(key: string): boolean;
+  clear(prefix?: string): void;
+}
+
+
+Optional Persistenz-Flag (enablePersistentCache), Namespacing ('av:'), Versionierung.
+
+4) Tests (Jest + HttpTestingController)
+4.1 Mocks & Fixtures
+
+Lege unter /src/assets/api-samples/alphavantage/ statische JSON-Beispiele ab:
+
+global-quote.AAPL.json
+
+time-series-daily-adjusted.AAPL.compact.json
+
+time-series-daily-adjusted.AAPL.full.json
+
+Keine echten API-Calls in Tests.
+
+4.2 Unit-Tests AlphaVantageApiService
+
+Quotes:
+
+Erfolgsfall: Mapping → PriceQuote korrekt (Preis, Δ, %, Datum → ISO).
+
+Fehler: 429 → Backoff → nach Max-Versuchen AppError HTTP/RATE_LIMIT.
+
+Fehler: unerwartetes JSON → VAL/QUOTE.
+
+TimeSeries:
+
+compact & full → korrekte Candle-Anzahl, Sortierung, Close=adjusted.
+
+Range-Trim (z. B. 1M → 22 Einträge, sofern vorhanden).
+
+Fehler: 5xx → Retry mit Jitter (fakeAsync/MockTimers), schließlich HTTP/UPSTREAM.
+
+Caching:
+
+Zweiter Aufruf innerhalb TTL → keine HTTP-Anfrage (assert via HttpTestingController.expectNone).
+
+Nach clear('av:') → erneuter HTTP-Call.
+
+Rate-Limit/Queue:
+
+Mehrere getQuotes([AAPL, MSFT, ...]) → Requests sequenziell, Abstand ≥ minRequestSpacingMs (prüfe via fakeAsync + Zeitfortschritt).
+
+Fehlende API-Keys:
+
+Wenn apiKey='' → sofortiger AppError HTTP/CLIENT mit Hinweis in Message; keine HTTP-Versuche.
+
+4.3 Integration: Effects (minimal)
+
+Mocke Port durch AlphaVantageApiService; teste, dass timeSeriesRequested die Cache-Hit-Logik respektiert (kein zweiter Call).
+
+Coverage-Ziel: ≥ 90 % für alphavantage-api.service.ts und cache.service.ts.
+
+5) README-Erweiterung
+
+Abschnitt „Echte Datenquelle: AlphaVantage“:
+
+Setup: Account, API-Key, .env → environment.ts (oder Build-Var).
+
+Umschaltung: environment.dataSource = 'alpha'.
+
+Rate-Limits: Beschreibung der clientseitigen Queue/Backoff.
+
+Währungs-Hinweis (siehe 2.7).
+
+Sicherheit: Keine Keys commiten; lokale .env in .gitignore.
+
+Troubleshooting: 429/5xx, Cache leeren (CacheService.clear('av:')), Logs.
+
+6) Akzeptanzkriterien (prüfbar)
+
+ AlphaVantageApiService implementiert vollständig PriceApiPort.
+
+ Konfiguration über environment inkl. Rate-Limit/TTL; kein hartcodierter Key.
+
+ Caching funktioniert (TTL, Clear).
+
+ Rate-Limit: Requests werden serialisiert und gedrosselt (Spacing).
+
+ Retry/Backoff mit Jitter für 429/5xx; Fehler sauber als AppError mit Codes.
+
+ Mapping nutzt adjusted close, Zeitachsen ISO-sortiert.
+
+ Tests grün, Coverage ≥ 90 %.
+
+ README dokumentiert Setup, Umschaltung, Limits, Sicherheit.
+
+7) Selbstprüfung (vom Generator auszuführen, kurz berichten)
+
+Prüfe, dass keine API-URL/Keys in Git-Historie landen (grep auf alphavantage.co mit Key-Query).
+
+Prüfe, dass quotes für mehrere Symbole nicht in einen Burst laufen (Queue beachtet).
+
+Prüfe, dass Cache-Keys Range/Outputsize unterscheiden (keine Cross-Pollution).
+
+Prüfe, dass adjusted close konsistent verwendet wird und Tooltips/KPIs dadurch nicht springen (gegenüber close).
+
+Prüfe, dass bei fehlendem Internet verständliche Fehlermeldungen erscheinen (HTTP/UPSTREAM).
+
+Liste typische Fehlerquellen (Parsing von change percent mit %, Off-by-one bei Range-Trim, new Date(string) vs. explizite ISO-Konstruktion).
+
+8) Am Ende zwingend ausgeben
+
+Install-/Run-/Test-Kommandos (z. B. npm run test, ggf. npm run start mit dataSource='alpha').
+
+Vollständige Dateiliste (neu/geändert) mit einzeiliger Zweckbeschreibung je Datei.
+
+Kurzbericht (max. 10 Zeilen) zum Ergebnis der Selbstprüfung (Punkt 7).
+
+Zusatzhinweise
+
+Behalte den Mock als Default-Quelle für reproduzierbare Tests/CI; aktiviere alpha nur lokal/Prod.
+
+Keine zusätzlichen globalen Interceptors für alphavantage — Fehlerbehandlung bleibt lokal im Service, um Seiteneffekte zu vermeiden.
+
+Halte die öffentlichen Methoden idempotent bzgl. Caching (keine doppelten Requests).
+
+Dokumentiere im Code die Backoff-Formel (Full Jitter) und Gründe für adjusted close.
