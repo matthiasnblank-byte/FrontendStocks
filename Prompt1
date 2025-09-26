@@ -1,1 +1,229 @@
+Prompt (Phase 1): Projektgrundlage & Policies für „boersencockpit“
 
+Rolle: Du bist ein präziser Code-Generator. Erzeuge ein neues Angular-Projekt (≥ 17, Standalone Components, Routing) mit Tailwind CSS, ESLint/Prettier, Jest (statt Karma/Jasmine) und Cypress. Setze Locale de-DE, Standardwährung EUR und eine zentrale Konstante/Injection-Token für die Zeitzone Europe/Berlin. Dokumentiere alles klar im README. Am Ende listest du alle erzeugten/geänderten Dateien mit Kurzbegründung.
+
+0) Rahmenbedingungen (Versionen, Qualität, Stil)
+
+Node 20 LTS und npm 10 annehmen; README soll Mindestversionen nennen.
+
+Angular 17.x (Standalone API, bootstrapApplication, provideRouter).
+
+Strenges TypeScript: in tsconfig.json "strict": true, keine stillschweigenden any.
+
+ESLint mit @angular-eslint/*; Prettier integriert (Konfliktregeln via eslint-config-prettier).
+
+Jest als Test-Runner mit jest-preset-angular; Karma/Jasmine vollständig entfernen.
+
+Cypress für E2E (ein Smoke-Test).
+
+Tailwind (JIT, Purge korrekt auf Angular-Templates).
+
+Keine globalen Stile oder Skripte aus CDN.
+
+1) Projektanlage & Basis-Konfiguration
+
+Angular-CLI Scaffold
+
+Neues Projekt: boersencockpit
+
+Standalone Components: ja
+
+Routing: ja
+
+Styles: CSS (kein SCSS)
+
+Root-Bootstrap über main.ts mit bootstrapApplication(AppComponent, { providers: [...] }).
+
+Routing
+
+Lege einen leeren Router mit Platzhaltern an:
+
+/ (Redirect → /portfolio)
+
+/portfolio (leere Seite mit „Portfolio (WIP)“)
+
+/stocks (leere Seite mit „Stocks (WIP)“)
+
+Nutze provideRouter(routes, withInMemoryScrolling({scrollPositionRestoration:'enabled'})).
+
+Locale, Währung, Zeitzone
+
+Registriere de-Locale (registerLocaleData) in main.ts.
+
+Provider:
+
+{ provide: LOCALE_ID, useValue: 'de-DE' }
+
+{ provide: DEFAULT_CURRENCY_CODE, useValue: 'EUR' }
+
+Eigenes Token APP_TIMEZONE (string) mit Wert 'Europe/Berlin' in /src/app/core/tokens/timezone.token.ts; exportiere und provide es global.
+
+Erzeuge eine Utility-Funktion formatInAppTimezone(date: Date | string): string, die APP_TIMEZONE verwendet (vorerst simple Weitergabe; Implementierung wird in Phase 2/5 mit date-fns-tz o. Ä. konkretisiert).
+
+2) Tailwind CSS Setup
+
+Installiere tailwindcss, postcss, autoprefixer; initialisiere Tailwind.
+
+Erzeuge tailwind.config.js:
+
+content umfasst alle Angular-Templates/TS (z. B. ./src/**/*.{html,ts}),
+
+aktiviere darkMode: 'class'.
+
+postcss.config.js mit tailwindcss und autoprefixer.
+
+In src/styles.css Tailwind-Direktiven @tailwind base; @tailwind components; @tailwind utilities;.
+
+Lege eine minimale Design-Konvention an: Utility-Klassen für .app-container, .card, .btn, .badge via @layer components in styles.css (nur Platzhalter, keine harte Farbpalette).
+
+3) ESLint & Prettier
+
+Installiere und konfiguriere:
+
+eslint, @angular-eslint/eslint-plugin, @angular-eslint/eslint-plugin-template, @angular-eslint/template-parser.
+
+prettier, eslint-config-prettier, eslint-plugin-prettier.
+
+.eslintrc.cjs:
+
+Angular-empfohlene Regeln aktiv,
+
+"parserOptions": { "project": ["tsconfig.json"] },
+
+prettier als letzte Extension,
+
+Regeln: no-explicit-any: "error", @typescript-eslint/explicit-function-return-type: "warn", Template-A11y: Aktivierung sinnvoller Basisregeln.
+
+Prettier-Setup: .prettierrc (z. B. printWidth: 100, singleQuote: true, trailingComma: "all"), .prettierignore.
+
+.editorconfig (UTF-8, LF, 2-Spaces).
+
+4) Jest (Karma ersetzen)
+
+Entferne Karma/Jasmine-Konfiguration, Abhängigkeiten und Skripte.
+
+Installiere: jest, jest-preset-angular, @types/jest, ts-jest.
+
+jest.config.js (oder .cjs) mit preset: 'jest-preset-angular', setupFilesAfterEnv: ['<rootDir>/src/setup-jest.ts'], testEnvironment: 'jsdom'.
+
+src/setup-jest.ts gemäß jest-preset-angular (Zone.js, TestBed init).
+
+Passe tsconfig.spec.json für Jest an (Types ["jest"]).
+
+NPM-Skripte: "test": "jest --passWithNoTests", "test:watch": "jest --watch".
+
+Dummy-Unit-Test:
+
+app.component.spec.ts prüft: Komponente erstellt, Template enthält „BörsenCockpit“ (oder „boersencockpit“), DatePipe-Snapshot mit LOCALE_ID.
+
+5) Cypress E2E (Smoke)
+
+Installiere Cypress als Dev-Dependency, initialisiere Standardstruktur cypress/.
+
+Config: cypress.config.ts (E2E, baseUrl http://localhost:4200).
+
+Smoke-Spec cypress/e2e/smoke.cy.ts:
+
+startet App,
+
+erwartet Sichtbarkeit des Header-Titels „BörsenCockpit“ (oder „boersencockpit“),
+
+Navigation funktioniert: Klick auf Link „Portfolio“ rendert Text „Portfolio (WIP)“, auf „Stocks“ rendert „Stocks (WIP)“.
+
+NPM-Skripte:
+
+"e2e": "cypress run",
+
+"e2e:open": "cypress open".
+
+6) App-Layout (Skeleton nur für Phase 1)
+
+Header (minimal): App-Titel „BörsenCockpit“, Platzhalter für Dark-Mode-Toggle.
+
+Container mit Tailwind-Utilities (min-h-screen, flex, bg-neutral-…).
+
+Accessible Landmarks: <header>, <main role="main">, <nav aria-label="Hauptnavigation">.
+
+Dark-Mode: nur Struktur vorbereitet – dark-Klasse wird später per Service gesetzt (Phase 4).
+
+7) Skripte & NPM
+
+Füge in package.json mindestens hinzu/aktualisiere:
+
+{
+  "scripts": {
+    "start": "ng serve",
+    "build": "ng build",
+    "lint": "eslint . --ext .ts,.html",
+    "format": "prettier --write \"**/*.{ts,html,css,md,json}\"",
+    "test": "jest --passWithNoTests",
+    "test:watch": "jest --watch",
+    "e2e": "cypress run",
+    "e2e:open": "cypress open"
+  },
+  "engines": { "node": ">=20", "npm": ">=10" }
+}
+
+8) README (zwingend zu erzeugen)
+
+Das README muss enthalten:
+
+Projektziel (1 Absatz, Dashboard für Aktien).
+
+Technik-Stack & Versionen (Angular 17.x, Node 20+, Tailwind 3.x, Jest, Cypress, ESLint/Prettier).
+
+Setup-Anleitung (Schritte: npm ci oder npm install, npm run start, npm run test, npm run e2e).
+
+Architekturüberblick (Phase 1): Standalone-Bootstrap, Routing-Platzhalter, Locale/Währung/Zeitzone-Provider.
+
+Konventionen: Code-Style, Lint/Format, Commit-Hinweise knapp.
+
+Bekannte Stolpersteine (z. B. Jest-Konflikte mit TS-Paths/ESM, Cypress-Permissions, Tailwind-Purge-Pfad).
+
+Nächste Schritte: Phase 2–6 (kurze Roadmap).
+
+9) Akzeptanzkriterien (prüfbar)
+
+ npm run start startet die App ohne Fehler; Startseite rendert einen Header mit Titel und die Router-Platzhalterseiten „Portfolio (WIP)“ und „Stocks (WIP)“.
+
+ npm run test führt Jest aus; mind. 1 grüner Unit-Test.
+
+ npm run e2e führt Cypress-Smoke erfolgreich aus.
+
+ eslint läuft ohne Fehler; tsconfig.json mit "strict": true.
+
+ Tailwind-Klassen wirken (sichtbare Utility-Styles im Layout).
+
+ LOCALE_ID='de-DE', DEFAULT_CURRENCY_CODE='EUR' und APP_TIMEZONE='Europe/Berlin' sind global provided und im Code referenzierbar.
+
+10) Selbstprüfung (der Generator führt diese Checkliste aus und berichtet kurz im Output)
+
+Prüfe, dass Karma-Artefakte entfernt sind (keine karma.conf.js, keine src/test.ts, keine Karma-Deps).
+
+Prüfe, dass jest.config.*, src/setup-jest.ts, tsconfig.spec.json korrekt auf Jest ausgerichtet sind.
+
+Prüfe, dass Tailwind-content die Angular-Pfade abdeckt (.html, .ts).
+
+Prüfe, dass der Router funktioniert (Redirect / → /portfolio).
+
+Prüfe, dass LOCALE_ID und DEFAULT_CURRENCY_CODE tatsächlich wirken (ein Template-Beispiel mit {{ 1234.56 | currency }} zeigt 1.234,56 €).
+
+Melde typische Fehlerquellen (ESM/TS-Jest, PostCSS-Ladesätze, Cypress-BaseUrl).
+
+11) Am Ende zwingend ausgeben
+
+Kommandoblöcke, die ein Nutzer lokal ausführt (z. B. npm install, npm run start, npm run test, npm run e2e).
+
+Vollständige Dateiliste aller neu erstellten/geänderten Dateien inkl. einzeiliger Zweckbeschreibung je Datei.
+
+Kurzbericht (max. 10 Zeilen) zur Selbstprüfung aus Punkt 10 (Ergebnis/Fazit).
+
+Zusatzhinweise (wichtig)
+
+Schreibe keinen Pseudocode. Erzeuge lauffähige Konfigurationen und Starter-Komponenten.
+
+Verwende keine globalen any.
+
+Halte dich exakt an diese Struktur; UI bleibt in Phase 1 minimal (nur Layout-Skeleton & Router-Platzhalter).
+
+Keine externen Styles/Fonts via CDN einbinden (Offline-Kompatibilität)
