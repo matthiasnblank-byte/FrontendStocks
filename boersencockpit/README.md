@@ -63,3 +63,32 @@ Für reproduzierbare Builds empfiehlt sich `npm ci` in CI-Umgebungen.
 4. **Phase 5** – Charting & Interaktive Visualisierungen.
 5. **Phase 6** – Deployment-Pipeline & Observability.
 
+## Echte Datenquelle: AlphaVantage
+
+Die AlphaVantage-Anbindung kann über die Umgebungskonfiguration zugeschaltet werden.
+
+### Setup
+
+1. Kostenlosen API-Key bei [AlphaVantage](https://www.alphavantage.co/support/#api-key) erzeugen.
+2. Key lokal in eine nicht eingecheckte `.env` schreiben (siehe [.env.example](./.env.example)).
+3. Beim Build den Wert in `environment.ts` bzw. `environment.production.ts` einspeisen (z. B. über `NG_APP_ALPHAVANTAGE_API_KEY`).
+4. `environment.dataSource` auf `'alpha'` setzen (Prod ist bereits vorbelegt).
+
+### Laufzeitverhalten
+
+- **Rate-Limit-Schutz:** Der `AlphaVantageApiService` verarbeitet HTTP-Aufrufe sequentiell und erzwingt den konfigurierbaren Mindestabstand (`minRequestSpacingMs`). Zusätzlich überwacht ein 60-Sekunden-Fenster die Maximalanzahl an Requests (`maxRequestsPerMinute`). Bei 429/5xx-Antworten greift ein Exponential-Backoff mit Full Jitter.
+- **Caching:** Antworten werden im `CacheService` abgelegt (`av:`-Namespace). Das TTL ist per Umgebung einstellbar und kann optional in `localStorage` gespiegelt werden (`enablePersistentCache`).
+- **Datenabbildung:** Quotes und Zeitreihen werden über die Zod-Schemata validiert. Für Zeitreihen wird der *adjusted close* verwendet, um Dividenden und Splits korrekt abzubilden.
+- **Währungshinweis:** AlphaVantage liefert die Originalwährung der Notierung. Liegt `ListSymbol.currency` abweichend vor, erfolgt keine Konvertierung. Aggregationen bleiben konsistent, solange alle Werte in derselben Währung bewertet werden.
+
+### Sicherheit
+
+- API-Keys niemals einchecken – `.env` ist im `.gitignore` hinterlegt.
+- Secrets in CI/CD als Build-Variablen injizieren.
+
+### Troubleshooting
+
+- **429 / Too Many Requests:** Queueing abwarten oder API-Key auf einen höheren Plan upgraden. Lokal kann das Cache-Reset per `CacheService.clear('av:')` helfen.
+- **5xx Upstream-Fehler:** Werden nach drei Versuchen als `HTTP/UPSTREAM` gemeldet; Logs prüfen.
+- **Parsing-Fehler:** Hinweise erscheinen als `VAL/QUOTE` bzw. `VAL/TIMESERIES`. Meist sind Felder leer oder Zahlen als `%` formatiert.
+
