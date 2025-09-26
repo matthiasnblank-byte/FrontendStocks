@@ -1,1 +1,326 @@
+Prompt (Phase 5): Feature „Stocks“ – Liste, Detail, Add-Form, Trades, Chart-Annotations
 
+Rolle: Du bist ein präziser Code-Generator. In der bestehenden Angular-17-Standalone-App boersencockpit implementierst du das Feature Stocks mit vollständig lauffähigem UI, angebunden an den in Phase 3 eingerichteten NgRx-Store und den in Phase 2 definierten PriceApiPort. Charts werden mit Chart.js via ng2-charts umgesetzt (inkl. Annotation-Plugin für Kaufmarker). Schreibe Unit- und E2E-Tests.
+
+Wichtig:
+– Keine Änderungen an bestehenden Typen/Ports aus Phase 2.
+– Store-Schnittstellen aus Phase 3 sind maßgeblich; UI konsumiert ausschließlich Selectors und dispatcht Actions.
+– Tailwind für alle Stile; A11y konsequent (ARIA, Fokus, Tastatur).
+– Locale de-DE, Default-Währung EUR, TZ-Token APP_TIMEZONE='Europe/Berlin' bleiben aktiv.
+
+0) Abhängigkeiten (falls noch nicht vorhanden)
+
+Installiere: ng2-charts, chart.js, chartjs-plugin-annotation.
+
+Registriere das Annotation-Plugin global (z. B. in einer kleinen Chart-Bootstrap-Datei oder im timeseries-chart-Component-Ctor).
+
+1) Verzeichnis- & Komponentenstruktur
+
+Erweitere/erstelle:
+
+/src/app/features/stocks/pages
+  stocks-list.page.{ts,html,css}
+  stock-add.page.{ts,html,css}
+  stock-detail.page.{ts,html,css}
+/src/app/features/stocks/components
+  stock-list-item.{ts,html,css}
+  trade-form.{ts,html,css}
+  trade-table.{ts,html,css}
+  timeseries-chart.{ts,html,css}
+/src/app/features/stocks/forms
+  trade.schema.ts           // Zod-Schema + Adapter zu Reactive Forms
+
+
+Alle Komponenten Standalone mit ChangeDetectionStrategy.OnPush. Keine NgModules.
+
+2) Routing (Bestätigung/Feinschliff)
+
+/stocks → StocksListPage
+
+/stocks/add → StockAddPage
+
+/stocks/:symbol → StockDetailPage
+
+Bei Navigationswechsel Fokus auf die h1 der Zielseite (Mechanik aus Phase 4 nutzen).
+
+3) StocksListPage (Übersicht)
+
+Zweck: Ebene-1-Sicht mit allen beobachtbaren Symbolen, aktuellem Kurs, Tages-Performance und farblichem Badge.
+
+Bezieht Daten über Selectors:
+
+selectAllStocks (Namen/Symbole aus stocks-Slice),
+
+selectQuoteBySymbol(symbol) aus quotes-Slice.
+
+UI:
+
+Suchfeld (Client-Side Filter auf Name/Symbol; ARIA-Label „Aktien filtern“).
+
+Grid/List mit stock-list-item Cards:
+
+Symbol (Monospace), Name (muted), letzter Preis (CurrencyPipe, EUR/USD entsprechend ListSymbol.currency), changePct Badge (grün bei ≥ 0, rot bei < 0).
+
+Klick → /stocks/:symbol.
+
+CTA-Button „Aktie hinzufügen“ → /stocks/add.
+
+Live-Quotes:
+
+Beim Betreten der Seite: dispatch quotesSnapshotRequested für sichtbare Symbole; starte quotesPollStart für alle gelisteten Symbole.
+
+Beim Verlassen: quotesPollStop.
+
+Edge Cases:
+
+Wenn keine Symbole verfügbar: leerer Zustand (Illustration/Placeholder, Link „Aktie hinzufügen“).
+
+Tastatur:
+
+Karten sind Links/Buttons mit role="link", aria-label="Zu Detailansicht von {SYMBOL}", Fokus-Ring (focus-visible:ring).
+
+4) StockAddPage (Aktie + Trades anlegen)
+
+Zweck: Ebene-2-Flow zum Anlegen/Erweitern von Positionen (Trades). Persistenz erfolgt im trades-Slice (lokal).
+
+Formularfelder:
+
+Symbol (Select mit Autocomplete aus selectAllStocks oder Textfeld mit Uppercase-Enforcement; validiere via Zod symbolSchema).
+
+Kauf/Verkauf (side: BUY/SELL).
+
+Menge (quantity > 0, integer).
+
+Preis (price ≥ 0, zwei Dezimalstellen).
+
+Datum/Zeit (timestamp ISO) – default: Jetzt, lokalisiert.
+
+Notiz (optional).
+
+Zod-Schema in forms/trade.schema.ts spiegelt Trade-Eingaben (ohne id; diese generierst du als UUID v4 in der addTradeRequested-Flow-Logik).
+
+Reactive Forms:
+
+Custom Zod-Validator (Adapter) + Angular Validators (z. B. Required, Min).
+
+Fehlermeldungen zugänglich (aria-describedby, Live-Region für Submit-Fehler).
+
+Submit:
+
+Dispatch addTradeRequested({ tradeInput }) → Erfolgs-Toast (ARIA Live) → Redirect:
+
+bei BUY/SELL für bestehendes Symbol: /stocks/:symbol,
+
+ansonsten /stocks (falls Symbol nicht existierte).
+
+Tests:
+
+Unit: Schema-Validierung Randfälle (quantity=0, price<0, Datum in Zukunft → erlaubt? Nein, hier: Zukunft nicht erlauben).
+
+E2E: Formular ausfüllen → Submit → Redirect → Trade in Detail sichtbar.
+
+5) StockDetailPage (Chart, Live-Quote, Trades)
+
+Zweck: Ebene-1-Detail für ein Symbol mit Timeseries-Chart, Kauf-Annotations, Quote-Ticker, Kennzahlen, Trade-Tabelle/CRUD.
+
+Initiale Daten:
+
+:symbol param als Domain-Symbol (verwende asSymbol()), validieren (Uppercase).
+
+Dispatch:
+
+timeSeriesRequested({ symbol, range: defaultRange }) mit defaultRange = '1M'.
+
+quotesSnapshotRequested({ symbols: [symbol] }) und quotesPollStart([symbol]) (Stop beim Verlassen).
+
+Kennzahlen-Karten (oberhalb Chart):
+
+Aktueller Preis (aus selectQuoteBySymbol), Veränderung abs/%.
+
+Position (aus selectTradesBySymbol → computePositions Selector):
+
+Nettomenge, durchschnittlicher Einstand (falls > 0), unrealisierter P&L (qty>0? (price–avg)×qty).
+
+Timeseries-Chart (Komponente timeseries-chart):
+
+Datenquelle: selectTimeSeries(symbol, range).
+
+Charttyp: Linienchart (Close-Preis).
+
+Annotationen: Kauf/Verkauf-Marker (BUY = grün ↑, SELL = rot ↓) entlang der Zeitachse:
+
+Tooltip: "{side} {quantity} @ {price} EUR – {timestamp}".
+
+Bei mehreren Trades am selben Tag: gestaffelte Offsets, Aggregation optional.
+
+Interaktion: Buttons für Bereiche 1W/1M/3M/6M/1Y/YTD/MAX. Aktiver Button hat aria-pressed="true".
+
+Lade-/leerer Zustand (Skeleton/Spinner), Fehleranzeige mit Retry-Button.
+
+Trades:
+
+trade-form (Inline zum Hinzufügen weiterer Trades für dieses Symbol, Felder wie in AddPage, Symbol fest vorausgewählt & deaktiviert).
+
+trade-table: Tabelle (sticky header), Spalten: Datum, Side, Menge, Preis, Notiz, Aktionen (Löschen).
+
+Löschen → removeTradeRequested({ id }) mit Confirm-Dialog (A11y: role="dialog", Escape, Fokus-Trap).
+
+A11y:
+
+h1: „{SYMBOL} – Detail“.
+
+Chart bekommt aria-label="Preisverlauf für {SYMBOL}", beschreibender figcaption.
+
+Filter/Range-Buttons sind echte Buttons (Keyboard-bedienbar, aria-pressed).
+
+6) Komponenten im Detail
+6.1 stock-list-item
+
+Inputs: symbol: Symbol, name: string, quote?: PriceQuote.
+
+Darstellung: kompakte Card mit Kurs, Badge (Tailwind: grün/rot), „Details“-Link.
+
+6.2 trade-form
+
+Inputs: symbol?: Symbol (optional; wenn gesetzt → Feld disabled + vorbefüllt).
+
+Output: (submitted) → FormValue (ohne id) für addTradeRequested.
+
+Validierung: nutzt Zod-Adapter; Fehler pro Feld anzeigen; Submit erst wenn valid.
+
+6.3 trade-table
+
+Input: trades: readonly Trade[].
+
+Output: (delete) → id: string.
+
+Sortierung: absteigend nach timestamp. Leerer Zustand möglich.
+
+6.4 timeseries-chart
+
+Inputs: series?: TimeSeries, trades?: readonly Trade[], range: RangeKey, currency: 'EUR'|'USD'|'CHF'|'GBP'.
+
+Interne ChartConfiguration<'line'> mit:
+
+parsing: false, normalized: true, spanGaps: true.
+
+Zeitachse: time (falls Adapter nötig, setze den von chart.js/luxon nicht; bleibe bei Numeric/Category + eigene Formatter, um Deps gering zu halten).
+
+Annotation-Plugin: je Trade ein point oder line mit Farbe/Label.
+
+Öffentliches Event (rangeChange).
+
+7) State-Interaktion (nur über Actions/Selectors)
+
+ListPage:
+
+ngOnInit: loadSymbolsRequested (falls noch nicht geladen), quotesSnapshotRequested, quotesPollStart.
+
+ngOnDestroy: quotesPollStop.
+
+DetailPage:
+
+Beim Range-Wechsel: timeSeriesRequested({symbol, range}).
+
+Beim Inline-Trade-Submit: addTradeRequested({ tradeInput: {..., symbol} }).
+
+Beim Löschen: removeTradeRequested({ id }).
+
+8) Tailwind-Stil & Responsivität
+
+Cards/Buttons/Badges mit vorhandenen Utility-Klassen (aus @layer components in styles.css).
+
+Dark-Mode Varianten (dark:*) für Hintergründe und Texte.
+
+Tabellen: table-auto, thead: sticky top-0, Zebra-Streifen (odd:bg-…/even:bg-…).
+
+Chart-Container: responsive (aspect-[16/9] ab md, aspect-[4/3] auf sm).
+
+9) Tests
+9.1 Unit (Jest)
+
+trade.schema: gültig/ungültig (quantity, price, future-date abweisen).
+
+stock-list.page: Selektor-Mock → rendert korrekte Anzahl Cards; Badge-Farbe nach changePct.
+
+stock-detail.page:
+
+Range-Wechsel dispatcht timeSeriesRequested.
+
+Inline-Trade Submit dispatcht addTradeRequested mit korrektem symbol.
+
+timeseries-chart:
+
+Converts series.candles → Chart-Dataset korrekt sortiert.
+
+Annotationenanzahl == Anzahl Trades; BUY/SELL Farbe korrekt; Tooltips-Formatter erzeugt erwarteten Text.
+
+9.2 Effects/Integration (bereits in Phase 3 geteilt; hier ggf. ergänzende Tests)
+
+quotes Polling Start/Stop beim Page-Enter/Leave via Router-Events.
+
+9.3 E2E (Cypress)
+
+Stocks-Flow:
+
+Öffne /stocks, prüfe Live-Kurse sichtbar (mind. ein data-testid="quote" aktualisiert sich).
+
+Klicke „Aktie hinzufügen“ → /stocks/add.
+
+Fülle Formular (z. B. SAP, BUY, Menge 5, Preis 120, jetzt) → Submit → Redirect /stocks/SAP.
+
+Prüfe: Chart rendert, Annotation vorhanden, Trade in Tabelle.
+
+Range-Wechsel: Klicke 1W/1M/3M…, Chart aktualisiert (Candles-Anzahl ändert sich).
+
+Löschen: Klicke „Löschen“ in Trade-Zeile → Confirm-Dialog → bestätigen → Zeile entfernt.
+
+A11y/Keyboard: Range-Buttons mit Pfeiltasten fokusierbar, Enter aktiviert; Tabelle per Tastatur erreichbar.
+
+10) Akzeptanzkriterien (prüfbar)
+
+ /stocks listet Symbole mit Quote & Performance-Badge; Live-Updates aktiv (Mock-Stream).
+
+ /stocks/add validiert Eingaben (Zod + Angular), speichert Trade, redirectet korrekt.
+
+ /stocks/:symbol zeigt Kennzahlen, Timeseries-Chart mit Kauf/Verkauf-Annotations, Inline-Trade-Form und Tabelle mit CRUD (Remove).
+
+ Range-Schalter funktionieren; TimeSeries wird per Action nachgeladen; Cache-Hit vermeidet Doppel-Requests (aus Phase 3).
+
+ A11y: sinnvolle ARIA-Labels, aria-pressed an Range-Buttons, Dialog mit role="dialog", Fokus-Trap.
+
+ Unit- & E2E-Tests grün; ESLint ohne Fehler; kein any.
+
+11) Selbstprüfung (vom Generator auszuführen, kurz berichten)
+
+Prüfe, dass keine Chart-Konfiguration im State landet (State bleibt serialisierbar).
+
+Prüfe, dass Polling bei Detail-→ Route-Wechsel stoppt (quotesPollStop oder Router-Signal).
+
+Prüfe, dass Annotationen exakt die Trade-Zeitpunkte referenzieren (Time-Zone: ISO→x-Koordinate).
+
+Prüfe, dass BUY/SELL-Farben konsistent zur Badge-Semantik in der Liste sind.
+
+Prüfe, dass bei leeren Trades die Detailseite sinnvoll bleibt (Chart ohne Marker, leere Tabelle).
+
+Liste typische Fehlerquellen (falsche Symbol-Normalisierung, Off-by-one bei Range-Schnitten, Tooltip-Formatter bricht bei USD).
+
+12) Am Ende zwingend ausgeben
+
+Install-/Run-/Test-Kommandos (inkl. npm i ng2-charts chart.js chartjs-plugin-annotation --save).
+
+Vollständige Dateiliste (neu/geändert) mit einzeiliger Zweckbeschreibung je Datei.
+
+Kurzbericht (max. 10 Zeilen) zum Ergebnis der Selbstprüfung (Punkt 11).
+
+Zusatzhinweise
+
+Keine externen Fonts/CDNs.
+
+Charts: eine Datenquelle (Close) für MVP; High/Low optional als schattierte Area (nicht Pflicht).
+
+Tooltips/Formatter lokalisiert (de-DE, Komma als Dezimaltrennzeichen).
+
+Währungsanzeige gemäß ListSymbol.currency (nicht pauschal EUR).
+
+Code sauber kommentieren, insbesondere bei Annotation-Mapping & Range-Buttons.
