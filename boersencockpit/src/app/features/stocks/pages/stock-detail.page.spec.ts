@@ -4,14 +4,6 @@ import { provideMockStore, MockStore } from '@ngrx/store/testing';
 import { of } from 'rxjs';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 
-jest.mock(
-  'ng2-charts',
-  (): { BaseChartDirective: new () => unknown } => ({
-    BaseChartDirective: class {}
-  }),
-  { virtual: true }
-);
-
 const existingCrypto = (globalThis as typeof globalThis & { crypto?: Crypto }).crypto;
 
 Object.defineProperty(globalThis, 'crypto', {

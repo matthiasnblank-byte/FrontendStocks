@@ -1,14 +1,6 @@
 import { SimpleChange } from '@angular/core';
 import { ChartConfiguration, ChartOptions } from 'chart.js';
 
-jest.mock(
-  'ng2-charts',
-  () => ({
-    BaseChartDirective: class {}
-  }),
-  { virtual: true }
-);
-
 import { TimeseriesChartComponent } from './timeseries-chart';
 import { TimeSeries } from '../../../domain/models/candle';
 import { Trade } from '../../../domain/models/trade';

@@ -6,7 +6,7 @@ import { Observable } from 'rxjs';
 import { runMarbles } from '../../../testing/marble-helpers';
 import { asSymbol } from '../../../domain/models/symbol.brand';
 import * as TradesActions from './trades.actions';
-import { TradesEffects } from './trades.effects';
+import { DEMO_TRADES, TradesEffects } from './trades.effects';
 import { tradesAdapter, initialTradesState } from './trades.reducer';
 import { TradesState } from './trades.models';
 
@@ -94,14 +94,27 @@ describe('TradesEffects', () => {
     });
   });
 
-  it('hydrates with empty array on load request', () => {
+  it('hydrates with demo trades on load request when store empty', () => {
     runMarbles(({ hot, expectObservable }) => {
       actions$ = hot('-a', { a: TradesActions.loadTradesHydrateRequested() });
       const expected = '-b';
-      const expectedValues = {
-        b: TradesActions.loadTradesHydrateSucceeded({ trades: [] }),
-      };
-      expectObservable(effects.loadTradesHydrateRequested$).toBe(expected, expectedValues);
+      expectObservable(effects.loadTradesHydrateRequested$).toBe(expected, {
+        b: TradesActions.loadTradesHydrateSucceeded({ trades: DEMO_TRADES }),
+      });
     });
+  });
+
+  it('ignores hydrate request when trades already exist', () => {
+    const stateWithTrade = tradesAdapter.addOne(baseTrade, initialTradesState);
+    store.setState({ trades: stateWithTrade });
+
+    runMarbles(({ hot, expectObservable }) => {
+      actions$ = hot('-a', { a: TradesActions.loadTradesHydrateRequested() });
+      expectObservable(effects.loadTradesHydrateRequested$).toBe('-');
+    });
+  });
+
+  it('dispatches hydrate request on init', () => {
+    expect(effects.ngrxOnInitEffects()).toEqual(TradesActions.loadTradesHydrateRequested());
   });
 });

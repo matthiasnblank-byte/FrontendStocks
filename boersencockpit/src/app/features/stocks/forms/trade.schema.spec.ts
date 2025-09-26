@@ -70,6 +70,23 @@ describe('buildTradeFormGroup', () => {
     expect(group.errors?.['zod']?.[0].message).toBe('Preis muss größer oder gleich 0 sein.');
   });
 
+  it('accepts timestamp input without timezone information', () => {
+    const formBuilder = new FormBuilder().nonNullable;
+    const group = buildTradeFormGroup(formBuilder);
+
+    group.patchValue({
+      symbol: 'SAP',
+      price: 120.5,
+      timestamp: '2024-01-10T10:00',
+    });
+
+    group.updateValueAndValidity();
+
+    expect(group.valid).toBe(true);
+    const parsed = parseTradeFormGroup(group);
+    expect(parsed.timestamp.endsWith('Z')).toBe(true);
+  });
+
   it('parses group value via parseTradeFormGroup', () => {
     const formBuilder = new FormBuilder().nonNullable;
     const group = buildTradeFormGroup(formBuilder, {

@@ -4,7 +4,7 @@ import {
   FormControl,
   FormGroup,
   ValidationErrors,
-  ValidatorFn
+  ValidatorFn,
 } from '@angular/forms';
 import { z } from 'zod';
 
@@ -16,8 +16,48 @@ const PRICE_DECIMAL_FACTOR = 100;
 const priceHasTwoDecimals = (value: number) =>
   Number.isFinite(value) && Math.abs(Math.round(value * PRICE_DECIMAL_FACTOR) - value * PRICE_DECIMAL_FACTOR) < 1e-6;
 
-const notePreprocessor = (value: unknown) =>
-  typeof value === 'string' ? value.trim() : value;
+const notePreprocessor = (value: unknown) => (typeof value === 'string' ? value.trim() : value);
+
+const hasTimezoneInformation = (value: string): boolean => /Z$|[+-]\d{2}:\d{2}$/.test(value);
+
+const ensureIsoTimestamp = (value: string): string => {
+  if (!value || hasTimezoneInformation(value)) {
+    return value;
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+  return parsed.toISOString();
+};
+
+const toLocalDateTimeInput = (value: string): string => {
+  if (!value) {
+    return value;
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+  const offset = parsed.getTimezoneOffset() * 60000;
+  return new Date(parsed.getTime() - offset).toISOString().slice(0, 16);
+};
+
+const normalizeForValidation = (value: unknown): unknown => {
+  if (typeof value !== 'object' || value === null) {
+    return value;
+  }
+  const record = value as Record<string, unknown>;
+  const timestamp = record['timestamp'];
+  if (typeof timestamp !== 'string') {
+    return value;
+  }
+  const normalized = ensureIsoTimestamp(timestamp);
+  if (normalized === timestamp) {
+    return value;
+  }
+  return { ...record, timestamp: normalized } satisfies Record<string, unknown>;
+};
 
 export const tradeFormSchema = z.object({
   symbol: z
@@ -60,10 +100,15 @@ export type TradeFormGroupControls = {
 
 export type TradeFormGroup = FormGroup<TradeFormGroupControls>;
 
+const normalizeTradeFormRawValue = (value: TradeFormRawValue): TradeFormRawValue => ({
+  ...value,
+  timestamp: ensureIsoTimestamp(value.timestamp),
+});
+
 const createZodGroupValidator = (schema: TradeFormSchema): ValidatorFn => {
   return (control) => {
     const value = control instanceof FormGroup ? control.getRawValue() : control.value;
-    const result = schema.safeParse(value);
+    const result = schema.safeParse(normalizeForValidation(value));
     if (result.success) {
       return null;
     }
@@ -83,7 +128,7 @@ const defaultTradeFormValue = (): TradeFormRawValue => ({
   quantity: 1,
   price: 0,
   timestamp: new Date().toISOString(),
-  note: ''
+  note: '',
 });
 
 export const buildTradeFormGroup = (
@@ -101,10 +146,12 @@ export const buildTradeFormGroup = (
       validators: [Validators.required, Validators.min(1)]
     }),
     price: formBuilder.control<number>(rawValue.price, {
-      validators: [Validators.required, Validators.min(0)]
+      validators: [Validators.required, Validators.min(0)],
     }),
-    timestamp: formBuilder.control<string>(rawValue.timestamp, { validators: [Validators.required] }),
-    note: formBuilder.control<string>(noteValue)
+    timestamp: formBuilder.control<string>(toLocalDateTimeInput(rawValue.timestamp), {
+      validators: [Validators.required],
+    }),
+    note: formBuilder.control<string>(noteValue),
   });
 
   group.addValidators(createZodGroupValidator(tradeFormSchema));
@@ -112,7 +159,8 @@ export const buildTradeFormGroup = (
   return group;
 };
 
-export const parseTradeFormValue = (value: TradeFormRawValue): TradeFormValue => tradeFormSchema.parse(value);
+export const parseTradeFormValue = (value: TradeFormRawValue): TradeFormValue =>
+  tradeFormSchema.parse(normalizeTradeFormRawValue(value));
 
 export const parseTradeFormGroup = (group: TradeFormGroup): TradeFormValue =>
-  tradeFormSchema.parse(group.getRawValue());
+  tradeFormSchema.parse(normalizeTradeFormRawValue(group.getRawValue()));
