@@ -1,1 +1,270 @@
+Prompt (Phase 8): Qualitätstore (Husky), CI/CD (GitHub Actions), Versionierung, Security & Repo-Hygiene
 
+Rolle: Du bist ein präziser Code-Generator. Erweitere das bestehende Angular-17-Projekt boersencockpit um produktionsreife Qualitätssicherungs- und Lieferprozesse. Implementiere lokale Git-Hooks (Husky), CI-Pipelines (GitHub Actions), semantische Versionierung (Conventional Commits + semantic-release), Security-/License-Audits, Docker-Build und Repo-Hygiene-Artefakte. Dokumentiere alles im README. Am Ende: Dateiliste, Kommandos, Selbstprüfungsbericht.
+
+Wichtig:
+– Bestehende Architektur und Tests aus Phase 1–7 bleiben unverändert.
+– Keine UI-Änderungen.
+– Node >=20, npm >=10, Angular 17.x.
+– CI muss deterministisch laufen (Lockfiles, Cache, reproduzierbare Builds).
+
+0) Abhängigkeiten & Projektkonfiguration
+
+Husky & Lint-Staged
+
+Installiere: husky, lint-staged.
+
+prepare-Script in package.json: "prepare": "husky install".
+
+Konfiguriere lint-staged für *.ts,*.html,*.css,*.json,*.md → eslint --fix, prettier --write.
+
+Conventional Commits & semantic-release
+
+Installiere: @commitlint/cli, @commitlint/config-conventional, semantic-release, @semantic-release/changelog, @semantic-release/git, @semantic-release/github, @semantic-release/npm (letzteres für private Repos als noop konfigurierbar).
+
+commitlint.config.cjs mit extends: ['@commitlint/config-conventional'].
+
+release.config.cjs mit:
+
+Branches: main (stable), optional next (pre-release).
+
+Plugins: @semantic-release/commit-analyzer, @semantic-release/release-notes-generator, @semantic-release/changelog, @semantic-release/git, @semantic-release/github.
+
+Changelog-Datei: CHANGELOG.md.
+
+Sicherheits-/Lizenz-Checks
+
+Skripte:
+
+"audit": "npm audit --audit-level=moderate || true" (CI separat mit Gate),
+
+"licenses:check": "node ./scripts/check-licenses.mjs" (erzeuge Skript; erlaubt etwa MIT/Apache-2.0/BSD-2/3).
+
+Optional: npm pkg set private=true falls kein Publishing gewünscht.
+
+Coverage-Gates (Jest)
+
+In jest.config.(cjs|js) Coverage-Schwellen:
+
+coverageThreshold: {
+  global: { branches: 85, functions: 90, lines: 90, statements: 90 }
+}
+
+
+NPM-Skripte: "test:cov": "jest --coverage".
+
+1) Husky-Hooks
+
+.husky/pre-commit
+
+npx lint-staged
+
+.husky/commit-msg
+
+npx --no -- commitlint --edit "$1"
+
+.husky/pre-push
+
+npm run build (schneller Prod-Build),
+
+npm run test:cov (ohne Watch),
+
+optional: npm run e2e (kann in CI laufen; lokal optional abwählbar via Env-Flag).
+
+Hooks sollen fehlschlagen, wenn Lint/Tests/Build fehlschlagen.
+
+2) GitHub Actions – CI/CD
+
+Erzeuge unter .github/workflows/ zwei Workflows:
+
+2.1 ci.yml – Prüfen bei PRs & Push auf Branches
+
+Trigger: pull_request (alle), push auf main, next.
+
+Jobs (Matrix Node 20.x):
+
+setup
+
+Aktionen: actions/checkout@v4, actions/setup-node@v4 (node-version: '20.x', cache: 'npm').
+
+npm ci.
+
+lint
+
+npm run lint + npm run format -- --check (Prettier check).
+
+unit-tests
+
+npm run test:cov → Coverage-Bericht als Artefakt hochladen.
+
+e2e
+
+Start ng serve im Hintergrund (--configuration=development) oder npx http-server ./dist nach Build.
+
+Empfehlung (stabiler): erst npm run build, dann cypress-io/github-action@v6 mit start: npx http-server dist/boersencockpit -p 4200.
+
+build
+
+npm run build (Prod), Artefakt dist/boersencockpit hochladen.
+
+security
+
+npm audit --audit-level=high (PRs mit High/Critical blockieren),
+
+node scripts/check-licenses.mjs (Lizenz-Policy).
+
+Gates: PR darf nur mergen, wenn alle Jobs grün.
+
+2.2 release.yml – Automatische Releases auf main
+
+Trigger: push auf main.
+
+Job:
+
+actions/checkout@v4, actions/setup-node@v4, npm ci.
+
+npm run build (Prod).
+
+npx semantic-release.
+
+Secrets: GITHUB_TOKEN (bereitgestellt), optional NPM_TOKEN (falls Publish vorgesehen).
+
+Artefakt-Upload (dist) an Release, CHANGELOG.md update via @semantic-release/git.
+
+Hinweis: Wenn AlphaVantage (Phase 7) genutzt wird, CI keine echten API-Calls; Tests bleiben mit Http-Mocks. Secrets nicht erforderlich für Tests.
+
+3) Docker-Build (optional, aber empfohlen)
+
+Dockerfile (Multi-Stage):
+
+builder: node:20-alpine → npm ci → npm run build
+
+runtime: nginx:alpine → kopiere dist/boersencockpit nach /usr/share/nginx/html → minimal nginx.conf mit SPA-Fallback (try_files $uri /index.html).
+
+.dockerignore: node_modules, dist, npm-debug.log, .git, etc.
+
+NPM-Skripte:
+
+"docker:build": "docker build -t boersencockpit:latest .",
+
+"docker:run": "docker run -p 8080:80 boersencockpit:latest".
+
+4) Repo-Hygiene: Vorlagen & Governance
+
+LICENSE (z. B. MIT; falls intern, entsprechend anpassen).
+
+CODEOWNERS (z. B. * @your-org/frontend-team).
+
+.github/ISSUE_TEMPLATE/
+
+bug_report.md, feature_request.md (strukturierte Felder).
+
+.github/PULL_REQUEST_TEMPLATE.md
+
+Checkliste (Tests, Lint, Changelog-Hinweis, Breaking Changes).
+
+CONTRIBUTING.md
+
+Setup, Branching, Commit-Konvention, Test-/Lint-Pfad, Release-Prozess.
+
+SECURITY.md
+
+Responsible Disclosure, Kontakt, unterstützte Versionen.
+
+.nvmrc mit 20.
+
+5) Skripte in package.json (Ergänzung)
+{
+  "scripts": {
+    "prepare": "husky install",
+    "format:check": "prettier --check \"**/*.{ts,html,css,md,json}\"",
+    "ci": "npm run lint && npm run test:cov && npm run build",
+    "audit": "npm audit --audit-level=moderate || true",
+    "licenses:check": "node ./scripts/check-licenses.mjs",
+    "release": "semantic-release"
+  }
+}
+
+6) Security & Compliance
+
+Env-/Secrets-Handling: .env.example erzeugen (Platzhalter), README erklärt lokale Verwendung; nie commiten von echten Keys. .gitignore enthält .env.
+
+CORS/Headers: Falls Docker/nginx genutzt → Security-Header (minimale CSP-Notiz im README).
+
+Dependency Policy: scripts/check-licenses.mjs blockiert unzulässige Lizenzen (z. B. GPL-3.0), erzeugt Report.
+
+7) README- & Dokumentations-Erweiterungen (zwingend)
+
+Abschnitt „Qualitätssicherung & CI/CD“:
+
+Husky-Hooks (Ablauf & Bypass nur in Ausnahmen),
+
+Workflows (CI, Release) mit Badges (optional),
+
+Semantic-Release: Branch-Strategie, Tagging, CHANGELOG-Automatik,
+
+Security-Checks (audit, licenses).
+
+Abschnitt „Deployment“:
+
+Artefakte (dist), Docker-Variante (docker:build, docker:run),
+
+SPA-Routing-Hinweis (nginx-Fallback).
+
+Abschnitt „Beitragen“: Verweis auf CONTRIBUTING, Commit-Konvention.
+
+8) Tests für die Pipeline (Meta-Checks)
+
+CI-Simulation lokal: npm run ci muss lokal fehlerfrei laufen.
+
+Hook-Smoke: simuliere Pre-Commit über npx lint-staged --debug.
+
+Release-Trockenlauf (lokal): npx semantic-release --dry-run (Dokumentiere dieses Kommando im README, aber führe es in Dateien nicht automatisch aus).
+
+9) Akzeptanzkriterien (prüfbar)
+
+ Husky-Hooks aktiv: pre-commit formatiert & linted; commit-msg erzwingt Conventional Commits; pre-push baut & testet.
+
+ CI (PR & Push) führt Lint, Unit-Coverage (≥ 90 % für Kernbereiche), E2E-Tests (Cypress Headless), Build, Security-/License-Checks aus; Artefakte werden hochgeladen.
+
+ Release-Workflow taggt Versionen semantisch, aktualisiert CHANGELOG.md, lädt Build-Artefakte an das GitHub-Release.
+
+ Docker-Image baut & dient die App unter http://localhost:8080, SPA-Routen funktionieren.
+
+ README/CONTRIBUTING/SECURITY vorhanden und konsistent.
+
+ Keine Secrets im Repo; .env.example vorhanden; .gitignore deckt .env.
+
+10) Selbstprüfung (vom Generator auszuführen, kurz berichten)
+
+Prüfe, dass Husky installiert ist und Hooks ausführbar sind (shebang, LF-Zeilenenden).
+
+Prüfe, dass CI-Caches (npm) korrekt greifen (Cache-Hitrate > 0 bei Folge-Runs).
+
+Prüfe, dass Cypress gegen gebauten Output läuft (stabiler als Dev-Server), und CI nicht „flaky“ ist (Retry-Policy nur bei Netz-Artefakten).
+
+Prüfe, dass semantic-release keine geschützten Branches überschreibt und nur auf main läuft.
+
+Prüfe, dass Lizenz-Check deterministisch ist (Lockfile-basiert).
+
+Liste typische Fehlerquellen (fehlende executable-Bits der Hooks, fehlerhafte baseUrl bei Cypress, fehlende GITHUB_TOKEN-Berechtigungen, CRLF-Probleme).
+
+11) Am Ende zwingend ausgeben
+
+Install-/Run-/Test-/Release-Kommandos (kurz & vollständig, inkl. npx husky add ...).
+
+Vollständige Dateiliste (neu/geändert) mit einzeiliger Zweckbeschreibung je Datei.
+
+Kurzbericht (max. 10 Zeilen) zum Ergebnis der Selbstprüfung (Punkt 10).
+
+Zusatzhinweise
+
+Halte Workflows minimal, aber strikt; alles Reproduzierbare in Skripte auslagern (Wiederverwendbarkeit lokal/CI).
+
+Verwende überall npm ci (nicht install) in CI.
+
+Erzwinge Conventional Commits für automatische Versionierung; dokumentiere Beispiele im CONTRIBUTING.
+
+Halte E2E deterministisch (keine externen Calls, fixe Seeds).
+
+Bevorzuge Fail-fast: bei Lint-/Test-Fehlern Abbruch statt „continue-on-error“.
