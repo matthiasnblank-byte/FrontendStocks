@@ -1,0 +1,118 @@
+<section class="space-y-6">
+  <header>
+    <h2 class="text-xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-100" tabindex="-1">{{ heading }}</h2>
+    <p class="text-sm text-neutral-500 dark:text-neutral-400">Erfasse Kauf- oder Verkaufsorders mit validierten Eingaben.</p>
+  </header>
+  <div
+    *ngIf="formErrorMessages.length > 0"
+    class="rounded-lg border border-rose-300 bg-rose-50 p-3 text-sm text-rose-800 dark:border-rose-700 dark:bg-rose-900/40 dark:text-rose-200"
+    aria-live="assertive"
+  >
+    <p class="font-medium">Bitte behebe die folgenden Fehler:</p>
+    <ul class="list-disc pl-5">
+      <li *ngFor="let error of formErrorMessages">{{ error }}</li>
+    </ul>
+  </div>
+  <form class="grid gap-4 md:grid-cols-2" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+    <div class="space-y-1 md:col-span-1">
+      <label class="text-sm font-medium text-neutral-700 dark:text-neutral-200" for="trade-symbol">Symbol</label>
+      <input
+        id="trade-symbol"
+        type="text"
+        inputmode="latin"
+        autocomplete="off"
+        class="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm uppercase text-neutral-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:cursor-not-allowed disabled:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
+        formControlName="symbol"
+        [attr.aria-invalid]="controlHasError('symbol')"
+        [attr.aria-describedby]="controlHasError('symbol') ? 'trade-symbol-error' : null"
+        (input)="onSymbolInput($event)"
+      />
+      <p *ngIf="controlHasError('symbol')" id="trade-symbol-error" class="text-sm text-rose-600 dark:text-rose-400">
+        Bitte gib ein gültiges Symbol an.
+      </p>
+    </div>
+
+    <div class="space-y-1 md:col-span-1">
+      <label class="text-sm font-medium text-neutral-700 dark:text-neutral-200" for="trade-side">Richtung</label>
+      <select
+        id="trade-side"
+        class="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
+        formControlName="side"
+      >
+        <option value="BUY">Kauf</option>
+        <option value="SELL">Verkauf</option>
+      </select>
+    </div>
+
+    <div class="space-y-1 md:col-span-1">
+      <label class="text-sm font-medium text-neutral-700 dark:text-neutral-200" for="trade-quantity">Menge</label>
+      <input
+        id="trade-quantity"
+        type="number"
+        min="1"
+        step="1"
+        inputmode="numeric"
+        class="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
+        formControlName="quantity"
+        [attr.aria-invalid]="controlHasError('quantity')"
+        [attr.aria-describedby]="controlHasError('quantity') ? 'trade-quantity-error' : null"
+      />
+      <p *ngIf="controlHasError('quantity')" id="trade-quantity-error" class="text-sm text-rose-600 dark:text-rose-400">
+        Menge muss größer als 0 sein.
+      </p>
+    </div>
+
+    <div class="space-y-1 md:col-span-1">
+      <label class="text-sm font-medium text-neutral-700 dark:text-neutral-200" for="trade-price">Preis</label>
+      <input
+        id="trade-price"
+        type="number"
+        min="0"
+        step="0.01"
+        inputmode="decimal"
+        class="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
+        formControlName="price"
+        [attr.aria-invalid]="controlHasError('price')"
+        [attr.aria-describedby]="controlHasError('price') ? 'trade-price-error' : null"
+      />
+      <p *ngIf="controlHasError('price')" id="trade-price-error" class="text-sm text-rose-600 dark:text-rose-400">
+        Preis muss positiv sein und maximal zwei Nachkommastellen haben.
+      </p>
+    </div>
+
+    <div class="space-y-1 md:col-span-1">
+      <label class="text-sm font-medium text-neutral-700 dark:text-neutral-200" for="trade-timestamp">Datum &amp; Uhrzeit</label>
+      <input
+        id="trade-timestamp"
+        type="datetime-local"
+        class="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
+        formControlName="timestamp"
+        [attr.aria-invalid]="controlHasError('timestamp')"
+        [attr.aria-describedby]="controlHasError('timestamp') ? 'trade-timestamp-error' : null"
+      />
+      <p *ngIf="controlHasError('timestamp')" id="trade-timestamp-error" class="text-sm text-rose-600 dark:text-rose-400">
+        Datum muss in der Vergangenheit liegen.
+      </p>
+    </div>
+
+    <div class="space-y-1 md:col-span-1">
+      <label class="text-sm font-medium text-neutral-700 dark:text-neutral-200" for="trade-note">Notiz (optional)</label>
+      <textarea
+        id="trade-note"
+        rows="3"
+        class="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
+        formControlName="note"
+      ></textarea>
+    </div>
+
+    <div class="md:col-span-2 flex items-center justify-end gap-3">
+      <button
+        type="submit"
+        class="inline-flex items-center justify-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 disabled:cursor-not-allowed disabled:bg-neutral-400"
+        [disabled]="submitting"
+      >
+        {{ submitting ? 'Speichern…' : 'Speichern' }}
+      </button>
+    </div>
+  </form>
+</section>

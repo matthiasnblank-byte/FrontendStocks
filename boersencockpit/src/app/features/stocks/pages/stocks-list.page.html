@@ -1,9 +1,60 @@
-<section class="space-y-4">
-  <h1 class="text-2xl font-semibold tracking-tight" tabindex="-1">Aktienüberblick</h1>
-  <p class="text-sm text-neutral-600 dark:text-neutral-300">
-    Hier entsteht der Überblick über alle beobachteten Aktien. In späteren Phasen folgen Kursdaten, Filter und Schnellaktionen.
-  </p>
-  <div class="rounded-lg border border-dashed border-neutral-300 p-4 text-sm text-neutral-500 dark:border-neutral-700 dark:text-neutral-400">
-    Platzhalterliste für Aktien – Datenintegration folgt in Phase 5.
+<section class="space-y-6">
+  <header class="space-y-2">
+    <h1 class="text-3xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-100" tabindex="-1">Aktienüberblick</h1>
+    <p class="text-sm text-neutral-500 dark:text-neutral-400">Verfolge deine beobachteten Symbole, aktuelle Kurse und Tagesperformance.</p>
+  </header>
+
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <label class="flex-1 min-w-[220px]">
+      <span class="sr-only">Aktien filtern</span>
+      <input
+        type="search"
+        [formControl]="searchControl"
+        placeholder="Aktien filtern"
+        class="w-full rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm text-neutral-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
+        aria-label="Aktien filtern"
+      />
+    </label>
+    <a
+      routerLink="/stocks/add"
+      class="inline-flex items-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+    >
+      Aktie hinzufügen
+    </a>
   </div>
+
+  <ng-container *ngIf="(filteredStocks$ | async) as stocks; else loadingState">
+    <ng-container *ngIf="stocks.length > 0; else emptyState">
+      <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <app-stock-list-item
+          *ngFor="let item of stocks; trackBy: trackBySymbol"
+          [symbol]="item.listSymbol.symbol"
+          [name]="item.listSymbol.name"
+          [currency]="item.listSymbol.currency"
+          [quote]="item.quote"
+        ></app-stock-list-item>
+      </div>
+    </ng-container>
+  </ng-container>
+
+  <ng-template #loadingState>
+    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div *ngFor="let skeleton of [1,2,3,4,5,6]" class="rounded-xl border border-dashed border-neutral-300 p-6 dark:border-neutral-700">
+        <div class="flex h-24 items-center justify-center text-sm text-neutral-400">Lade Symbole…</div>
+      </div>
+    </div>
+  </ng-template>
+
+  <ng-template #emptyState>
+    <div class="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 p-10 text-center text-neutral-500 dark:border-neutral-700 dark:bg-neutral-900/40 dark:text-neutral-300">
+      <p class="text-lg font-medium">Noch keine Aktien beobachtet.</p>
+      <p class="text-sm">Starte deine Watchlist, indem du eine Aktie hinzufügst.</p>
+      <a
+        routerLink="/stocks/add"
+        class="inline-flex items-center rounded-lg border border-primary-500 px-4 py-2 text-sm font-semibold text-primary-600 transition hover:bg-primary-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:border-primary-400 dark:text-primary-300 dark:hover:bg-primary-900/40"
+      >
+        Aktie hinzufügen
+      </a>
+    </div>
+  </ng-template>
 </section>

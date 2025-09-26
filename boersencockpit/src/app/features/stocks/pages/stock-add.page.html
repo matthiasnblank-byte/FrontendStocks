@@ -1,10 +1,18 @@
-<section class="space-y-4">
-  <h1 class="text-2xl font-semibold tracking-tight" tabindex="-1">Aktie hinzufügen</h1>
-  <p class="text-sm text-neutral-600 dark:text-neutral-300">
-    Dieses Formular nimmt in einer späteren Phase die Daten für neue Aktien auf. Hier zeigen wir den reservierten Bereich und die
-    kommenden Interaktionspunkte.
+<section class="space-y-6">
+  <header class="space-y-2">
+    <h1 class="text-3xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-100" tabindex="-1">Aktie &amp; Trades erfassen</h1>
+    <p class="text-sm text-neutral-500 dark:text-neutral-400">
+      Ergänze deine Watchlist mit neuen Positionen. Alle Eingaben werden in Echtzeit validiert.
+    </p>
+  </header>
+
+  <p *ngIf="liveMessage()" class="rounded-lg bg-emerald-100 px-4 py-2 text-sm text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200" aria-live="polite">
+    {{ liveMessage() }}
   </p>
-  <div class="rounded-lg border border-dashed border-neutral-300 p-6 text-sm text-neutral-500 dark:border-neutral-700 dark:text-neutral-400">
-    Formularplatzhalter – Eingabe- und Validierungslogik folgen.
-  </div>
+
+  <app-trade-form [heading]="'Trade anlegen'" [submitting]="submitting()" (submitted)="handleSubmit($event)"></app-trade-form>
+
+  <p class="text-xs text-neutral-500 dark:text-neutral-400">
+    Hinweis: Trades werden lokal gespeichert. Erfolgreiche Buchungen führen dich automatisch zur passenden Ansicht.
+  </p>
 </section>
