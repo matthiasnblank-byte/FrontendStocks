@@ -1,11 +1,12 @@
 import { SimpleChange } from '@angular/core';
+import { ChartConfiguration, ChartOptions } from 'chart.js';
 
 jest.mock(
   'ng2-charts',
   () => ({
-    BaseChartDirective: class {},
+    BaseChartDirective: class {}
   }),
-  { virtual: true },
+  { virtual: true }
 );
 
 import { TimeseriesChartComponent } from './timeseries-chart';
@@ -18,8 +19,8 @@ const seriesFixture: TimeSeries = {
   candles: [
     { t: '2024-01-03T00:00:00.000Z', o: 120, h: 121, l: 119, c: 121 },
     { t: '2024-01-01T00:00:00.000Z', o: 110, h: 112, l: 108, c: 110 },
-    { t: '2024-01-02T00:00:00.000Z', o: 115, h: 118, l: 114, c: 117 },
-  ],
+    { t: '2024-01-02T00:00:00.000Z', o: 115, h: 118, l: 114, c: 117 }
+  ]
 };
 
 const tradesFixture: Trade[] = [
@@ -29,7 +30,7 @@ const tradesFixture: Trade[] = [
     side: 'BUY',
     quantity: 5,
     price: 111,
-    timestamp: '2024-01-01T00:00:00.000Z',
+    timestamp: '2024-01-01T00:00:00.000Z'
   },
   {
     id: '2',
@@ -37,26 +38,31 @@ const tradesFixture: Trade[] = [
     side: 'SELL',
     quantity: 3,
     price: 120,
-    timestamp: '2024-01-03T00:00:00.000Z',
-  },
+    timestamp: '2024-01-03T00:00:00.000Z'
+  }
 ];
 
 describe('TimeseriesChartComponent', () => {
-let component: TimeseriesChartComponent;
-const originalNumberFormat = Intl.NumberFormat;
+  let component: TimeseriesChartComponent;
+  let numberFormatSpy: jest.SpiedFunction<typeof Intl.NumberFormat>;
 
-beforeAll(() => {
-  (Intl as any).NumberFormat = jest.fn().mockImplementation(() => ({
-    format: (value: number) => `${value.toFixed(2).replace('.', ',')} €`,
-  }));
-});
+  beforeAll((): void => {
+    numberFormatSpy = jest.spyOn(Intl, 'NumberFormat').mockImplementation((() => ({
+      format: (value: number): string => `${value.toFixed(2).replace('.', ',')} €`
+    })) as unknown as typeof Intl.NumberFormat);
+  });
 
-afterAll(() => {
-  (Intl as any).NumberFormat = originalNumberFormat;
-});
+  afterAll((): void => {
+    numberFormatSpy.mockRestore();
+  });
 
-beforeEach(() => {
-  component = new TimeseriesChartComponent();
+  type TimeseriesChartTestHarness = TimeseriesChartComponent & {
+    chartData: ChartConfiguration<'line'>['data'];
+    chartOptions: ChartOptions<'line'>;
+  };
+
+  beforeEach((): void => {
+    component = new TimeseriesChartComponent();
     component.currency = 'EUR';
     component.range = '1M';
     component.series = seriesFixture;
@@ -64,22 +70,24 @@ beforeEach(() => {
     component.ngOnChanges({
       series: new SimpleChange(null, component.series, true),
       trades: new SimpleChange(null, component.trades, true),
-      currency: new SimpleChange(null, component.currency, true),
+      currency: new SimpleChange(null, component.currency, true)
     });
   });
 
-  it('maps candles to sorted chart data', () => {
-    const data = (component as any).chartData.datasets[0].data as { x: number; y: number }[];
+  it('maps candles to sorted chart data', (): void => {
+    const harness = component as TimeseriesChartTestHarness;
+    const data = harness.chartData.datasets[0].data as { x: number; y: number }[];
     expect(data.map((point) => point.y)).toEqual([110, 117, 121]);
     expect(data.map((point) => point.x)).toEqual([
       new Date('2024-01-01T00:00:00.000Z').getTime(),
       new Date('2024-01-02T00:00:00.000Z').getTime(),
-      new Date('2024-01-03T00:00:00.000Z').getTime(),
+      new Date('2024-01-03T00:00:00.000Z').getTime()
     ]);
   });
 
-  it('creates annotations for each trade with correct coloring', () => {
-    const options = (component as any).chartOptions.plugins?.annotation as { annotations: Record<string, unknown> } | undefined;
+  it('creates annotations for each trade with correct coloring', (): void => {
+    const harness = component as TimeseriesChartTestHarness;
+    const options = harness.chartOptions.plugins?.annotation as { annotations: Record<string, unknown> } | undefined;
     expect(options).toBeDefined();
     const annotations = options?.annotations ?? {};
     expect(Object.keys(annotations)).toHaveLength(tradesFixture.length);
@@ -90,15 +98,13 @@ beforeEach(() => {
     expect(values[1].rotation).toBe(180);
   });
 
-  it('formats tooltip text for trades', () => {
-    const callbacks = (component as any).chartOptions.plugins?.tooltip?.callbacks;
+  it('formats tooltip text for trades', (): void => {
+    const harness = component as TimeseriesChartTestHarness;
+    const callbacks = harness.chartOptions.plugins?.tooltip?.callbacks;
     expect(callbacks).toBeDefined();
     const afterBody = callbacks.afterBody?.bind({});
-    const tooltip = afterBody?.([
-      {
-        parsed: { x: new Date('2024-01-03T00:00:00.000Z').getTime(), y: 121 },
-      } as any,
-    ]);
+    const tooltipItems: readonly { parsed: { x: number; y: number } }[] = [{ parsed: { x: new Date('2024-01-03T00:00:00.000Z').getTime(), y: 121 } }];
+    const tooltip = afterBody?.(tooltipItems);
     expect(tooltip?.[0]).toContain('Verkauf');
     expect(tooltip?.[0]).toContain('120,00 €');
   });

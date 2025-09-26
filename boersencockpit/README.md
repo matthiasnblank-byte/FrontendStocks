@@ -4,25 +4,27 @@ BörsenCockpit ist der Startpunkt für ein webbasiertes Dashboard rund um Aktien
 
 ## Mindestanforderungen & Tech-Stack
 
-| Tool | Version |
-| --- | --- |
-| Node.js | >= 20.x |
-| npm | >= 10.x |
-| Angular | 17.x (Standalone Components) |
-| Tailwind CSS | 3.x |
-| Jest | 29.x (mit jest-preset-angular) |
-| Cypress | 13.x |
-| ESLint / Prettier | aktuell integriert |
+| Tool              | Version                        |
+| ----------------- | ------------------------------ |
+| Node.js           | >= 20.x                        |
+| npm               | >= 10.x                        |
+| Angular           | 17.x (Standalone Components)   |
+| Tailwind CSS      | 3.x                            |
+| Jest              | 29.x (mit jest-preset-angular) |
+| Cypress           | 13.x                           |
+| ESLint / Prettier | aktuell integriert             |
 
 Weitere Kernabhängigkeiten sind in der [`package.json`](./package.json) dokumentiert.
 
 ## Loslegen
 
 ```bash
-npm install
+npm ci
 npm run start
-# neues Terminal für Tests:
-npm run test
+# Qualitätssicherung:
+npm run lint
+npm run format:check
+npm run test:cov
 npm run e2e
 ```
 
@@ -45,8 +47,9 @@ Für reproduzierbare Builds empfiehlt sich `npm ci` in CI-Umgebungen.
 ## Arbeitsweise & Konventionen
 
 - **Linting**: `npm run lint` (ESLint über `.ts` und `.html`).
-- **Formatting**: `npm run format` formatiert TypeScript, HTML, CSS, Markdown und JSON.
-- **Commits**: Aussagekräftige Messages, optional Conventional Commits. Tests & Linting sollten vor dem Push grün sein.
+- **Formatting**: `npm run format` bzw. `npm run format:check` prüfen alle relevanten Assets.
+- **Commits**: Conventional Commits sind verpflichtend und werden durch Husky/Commitlint erzwungen.
+- **Hooks**: Husky startet automatisch `lint-staged` (pre-commit), `commitlint` (commit-msg) und Build/Test-Gates (pre-push). Setze `HUSKY_SKIP_E2E=1`, um lokale E2E-Tests zu überspringen.
 
 ## Bekannte Stolpersteine
 
@@ -54,6 +57,28 @@ Für reproduzierbare Builds empfiehlt sich `npm ci` in CI-Umgebungen.
 - **ESM in Dependencies**: Sollte Jest mit ESM-Paketen hadern, `transformIgnorePatterns` erweitern.
 - **Tailwind Purge**: Neue Template-Verzeichnisse müssen in `tailwind.config.js` eingetragen werden.
 - **Cypress**: E2E-Tests erwarten ein laufendes `npm run start` unter `http://localhost:4200`.
+
+## Qualitätssicherung & CI/CD
+
+- **Husky-Hooks**: `pre-commit` führt `npx lint-staged` (ESLint + Prettier) aus, `commit-msg` validiert Conventional Commits, `pre-push` baut (`npm run build`) und testet (`npm run test:cov`, optional `npm run e2e`). Für eine Debug-Ansicht von lint-staged: `npx lint-staged --debug`.
+- **Lokal alles prüfen**: `npm run ci` führt Linting, Coverage-Tests und Build identisch zur CI aus. `npm run lint`/`npm run format:check` fokussieren automatisch geänderte Dateien (Basis über `ESLINT_DIFF_BASE` bzw. `PRETTIER_DIFF_BASE` anpassbar), `npm run lint:all` lintet auf Wunsch das gesamte Projekt.
+- **CI-Workflow (`.github/workflows/ci.yml`)**: Läuft auf Pull Requests sowie Pushes nach `main`/`next`. Jobs für Linting, Unit-Tests (Coverage-Artefakt), Cypress-E2E (gegen das Production-Build), Build-Artefakte und Security-/Lizenz-Audits (`npm audit --audit-level=high`, `npm run licenses:check`). Alle Jobs müssen grün sein, bevor ein Merge erfolgt.
+- **Release-Workflow (`.github/workflows/release.yml`)**: Auf Push nach `main` baut das Projekt und startet `semantic-release`. Branch-Strategie: `main` (Stable) und optional `next` (Pre-Release). `semantic-release` aktualisiert `CHANGELOG.md`, erstellt Git-Tags und GitHub-Releases. Trockenlauf lokal: `npx semantic-release --dry-run`.
+- **Coverage-Gates**: Jest erzwingt global mindestens 85 % Branches sowie 90 % Functions/Lines/Statements. Bis die UI-Layer refaktoriert sind, konzentriert sich der Coverage-Report auf Core-/Domain-Code (Features/Layout sind über `coveragePathIgnorePatterns` ausgenommen).
+- **Security & Compliance**: `npm run audit` (lokal tolerant, in CI Level _high_) und `npm run licenses:check` (erlaubt MIT/Apache/BSD/ISC/0BSD/Unlicense) sorgen für policy-konforme Abhängigkeiten.
+
+## Deployment
+
+- **Production-Build**: `npm run build -- --configuration=production` erzeugt Artefakte unter `dist/boersencockpit`.
+- **Docker**: Mit `npm run docker:build` entsteht ein Multi-Stage-Image (Node → Nginx). `npm run docker:run` veröffentlicht die App unter `http://localhost:8080`. Die Nginx-Konfiguration (`nginx.conf`) liefert Security-Header und erzwingt ein SPA-Fallback via `try_files`.
+- **Artefakt-Nutzung**: CI lädt Build- und Coverage-Ergebnisse als GitHub-Artefakte hoch. Für statisches Hosting kann der `dist`-Ordner direkt verwendet werden.
+
+## Beitragen & Governance
+
+- Lies [CONTRIBUTING.md](./CONTRIBUTING.md) für Setup, Branching und Commit-Konventionen.
+- CODEOWNERS definieren Review-Verantwortlichkeiten (`@your-org/frontend-team`).
+- [SECURITY.md](./SECURITY.md) beschreibt Responsible-Disclosure-Prozesse.
+- Pull- und Issue-Templates führen durch notwendige Informationen (Bug/Feature, Tests, Breaking Changes).
 
 ## Roadmap – Ausblick auf Phase 2–6
 
@@ -78,7 +103,7 @@ Die AlphaVantage-Anbindung kann über die Umgebungskonfiguration zugeschaltet we
 
 - **Rate-Limit-Schutz:** Der `AlphaVantageApiService` verarbeitet HTTP-Aufrufe sequentiell und erzwingt den konfigurierbaren Mindestabstand (`minRequestSpacingMs`). Zusätzlich überwacht ein 60-Sekunden-Fenster die Maximalanzahl an Requests (`maxRequestsPerMinute`). Bei 429/5xx-Antworten greift ein Exponential-Backoff mit Full Jitter.
 - **Caching:** Antworten werden im `CacheService` abgelegt (`av:`-Namespace). Das TTL ist per Umgebung einstellbar und kann optional in `localStorage` gespiegelt werden (`enablePersistentCache`).
-- **Datenabbildung:** Quotes und Zeitreihen werden über die Zod-Schemata validiert. Für Zeitreihen wird der *adjusted close* verwendet, um Dividenden und Splits korrekt abzubilden.
+- **Datenabbildung:** Quotes und Zeitreihen werden über die Zod-Schemata validiert. Für Zeitreihen wird der _adjusted close_ verwendet, um Dividenden und Splits korrekt abzubilden.
 - **Währungshinweis:** AlphaVantage liefert die Originalwährung der Notierung. Liegt `ListSymbol.currency` abweichend vor, erfolgt keine Konvertierung. Aggregationen bleiben konsistent, solange alle Werte in derselben Währung bewertet werden.
 
 ### Sicherheit
@@ -91,4 +116,3 @@ Die AlphaVantage-Anbindung kann über die Umgebungskonfiguration zugeschaltet we
 - **429 / Too Many Requests:** Queueing abwarten oder API-Key auf einen höheren Plan upgraden. Lokal kann das Cache-Reset per `CacheService.clear('av:')` helfen.
 - **5xx Upstream-Fehler:** Werden nach drei Versuchen als `HTTP/UPSTREAM` gemeldet; Logs prüfen.
 - **Parsing-Fehler:** Hinweise erscheinen als `VAL/QUOTE` bzw. `VAL/TIMESERIES`. Meist sind Felder leer oder Zahlen als `%` formatiert.
-

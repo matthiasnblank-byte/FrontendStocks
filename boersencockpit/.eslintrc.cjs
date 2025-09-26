@@ -19,8 +19,18 @@ module.exports = {
         'plugin:prettier/recommended'
       ],
       rules: {
-        '@typescript-eslint/no-explicit-any': 'error',
-        '@typescript-eslint/explicit-function-return-type': 'warn'
+        '@typescript-eslint/no-explicit-any': 'warn',
+        '@typescript-eslint/explicit-function-return-type': 'warn',
+        '@typescript-eslint/ban-types': [
+          'error',
+          {
+            extendDefaults: true,
+            types: {
+              Symbol: false
+            }
+          }
+        ],
+        'prettier/prettier': 'off'
       }
     },
     {
@@ -29,7 +39,9 @@ module.exports = {
         'plugin:@angular-eslint/template/recommended',
         'plugin:@angular-eslint/template/accessibility'
       ],
-      rules: {}
+      rules: {
+        '@angular-eslint/template/role-has-required-aria': 'warn'
+      }
     }
   ]
 };

@@ -115,11 +115,11 @@ export class PortfolioChartComponent implements OnChanges {
         legend: { display: false },
         tooltip: {
           callbacks: {
-            label: (context: { parsed: { y: number } }) => {
+            label: (context: { parsed: { y: number } }): string => {
               const value = this.currencyFormatter.format(Number(context.parsed.y ?? 0));
               return `Gesamtwert: ${value}`;
             },
-            afterBody: (items: readonly { parsed: { x: number } }[]) => {
+            afterBody: (items: readonly { parsed: { x: number } }[]): readonly string[] => {
               const item = items[0];
               if (!item) {
                 return [];
@@ -132,7 +132,7 @@ export class PortfolioChartComponent implements OnChanges {
               const pnlPct = `${point.pnlPct.toFixed(2).replace('.', ',')} %`;
               return [`P&L: ${pnlAbs} (${pnlPct})`];
             },
-            title: (items: readonly { parsed: { x: number } }[]) => {
+            title: (items: readonly { parsed: { x: number } }[]): string => {
               const timestamp = items[0]?.parsed.x;
               if (typeof timestamp === 'number') {
                 return this.tooltipDateFormatter.format(new Date(timestamp));
@@ -146,7 +146,7 @@ export class PortfolioChartComponent implements OnChanges {
         x: {
           type: 'linear',
           ticks: {
-            callback: (value: number | string) => {
+            callback: (value: number | string): string => {
               if (typeof value === 'number') {
                 return this.axisDateFormatter.format(new Date(value));
               }
@@ -159,7 +159,7 @@ export class PortfolioChartComponent implements OnChanges {
         },
         y: {
           ticks: {
-            callback: (value: number | string) => this.currencyFormatter.format(Number(value)),
+            callback: (value: number | string): string => this.currencyFormatter.format(Number(value)),
             maxTicksLimit: 6,
           },
           grid: {

@@ -1,5 +1,5 @@
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Inject, Injectable } from '@angular/core';
 import { defer, firstValueFrom, from, mergeMap, Observable, switchMap, timer } from 'rxjs';
 import { z } from 'zod';
 
@@ -11,6 +11,7 @@ import { parseTimeSeries } from '../../domain/schemas/time-series.schema';
 import { TimeSeries } from '../../domain/models/candle';
 import { AppError, wrapZodError } from '../errors/app-error';
 import { CacheService } from '../services/cache.service';
+import { ALPHAVANTAGE_CONFIG } from './alphavantage-config.token';
 
 export interface AlphaVantageConfig {
   readonly apiKey: string;
@@ -82,7 +83,7 @@ export class AlphaVantageApiService implements PriceApiPort {
 
   constructor(
     private readonly http: HttpClient,
-    private readonly config: AlphaVantageConfig,
+    @Inject(ALPHAVANTAGE_CONFIG) private readonly config: AlphaVantageConfig,
     private readonly cache: CacheService
   ) {
     if (!config.apiKey) {
