@@ -1,1 +1,324 @@
+Prompt (Phase 3): State-Management mit NgRx (Store, Entity, Effects, Selectors, Tests)
 
+Rolle: Du bist ein präziser Code-Generator. In der bestehenden Angular-17-Standalone-Codebasis boersencockpit implementierst du ein robustes State-Management mit NgRx. Erzeuge Store-Konfiguration, fünf Slices (stocks, trades, quotes, timeseries, portfolio), Actions/Reducers/Selectors, Effects (inkl. Polling & API-Integration), Marble-Tests, strict typing, Store Devtools (nur dev) und Router-Integration. Keine UI-Änderungen in Phase 3.
+
+Wichtig: Die in Phase 2 definierten Domänenmodelle, Ports und Parser gelten als vertraglich fix. Importiere nur von dort; keine Feldnamen/Typen ändern.
+
+0) Abhängigkeiten & Qualitätsregeln
+
+Installiere: @ngrx/store, @ngrx/effects, @ngrx/entity, @ngrx/store-devtools, @ngrx/router-store, @ngrx/schematics (dev), rxjs (bereits vorhanden), tslib.
+
+TypeScript strict ist gesetzt; kein any in öffentlichen APIs.
+
+OnPush-Denke: Selektoren sind memoized, pure und kompositorisch.
+
+Unit-Tests mit Jest; Effects via @ngrx/effects/testing und Marble-Tests (rxjs-marbles oder jest-marbles – eine Variante wählen, konsistent dokumentieren).
+
+1) Verzeichnisstruktur
+/src/app
+  /store
+    app.state.ts
+    app.store.module.ts  // reines Provider-Modul für Store/Effects/Devtools, in main.ts eingebunden
+  /features
+    /stocks/state
+      stocks.actions.ts
+      stocks.reducer.ts
+      stocks.selectors.ts
+      stocks.effects.ts
+      stocks.models.ts     // ggf. UI-nahe Modellierungen (IDs etc.), aber hier rein Domain-IDs verwenden
+    /trades/state
+      trades.actions.ts
+      trades.reducer.ts
+      trades.selectors.ts
+      trades.effects.ts
+    /quotes/state
+      quotes.actions.ts
+      quotes.reducer.ts
+      quotes.selectors.ts
+      quotes.effects.ts
+    /timeseries/state
+      timeseries.actions.ts
+      timeseries.reducer.ts
+      timeseries.selectors.ts
+      timeseries.effects.ts
+    /portfolio/state
+      portfolio.actions.ts
+      portfolio.reducer.ts
+      portfolio.selectors.ts
+      portfolio.effects.ts   // leichte Orchestrierung, keine Netzaufrufe
+  /core/api
+    price-api.port.ts        // (bereits vorhanden, unverändert)
+    mock-price-api.service.ts
+  /testing
+    marble-helpers.ts        // Test-Scheduler/Marble-Hilfen
+
+
+app.store.module.ts ist ein Standalone-Provider-Setup (kein NgModule-Zwang), das in main.ts via importProvidersFrom() oder direkte provideStore()/provideEffects() registriert wird.
+
+2) App-Store-Basis
+2.1 AppState & Registrierung
+
+AppState (Root-State) exportieren; Teilbäume: stocks, trades, quotes, timeseries, portfolio.
+
+app.store.module.ts:
+
+provideStore(reducers, { runtimeChecks: { strictStateImmutability: true, strictActionImmutability: true, strictStateSerializability: true, strictActionSerializability: true }})
+
+provideEffects([StocksEffects, TradesEffects, QuotesEffects, TimeSeriesEffects, PortfolioEffects])
+
+provideRouterStore() (Integration Router-Store)
+
+StoreDevtoolsModule.instrument({ maxAge: 25, logOnly: environment.production }) nur im Dev.
+
+2.2 Action-Namenskonventionen
+
+Präfixe: [Stocks] Load, [Trades] Add, [Quotes] Poll Start, [TimeSeries] Load, [Portfolio] Recompute.
+
+Konsequente source-of-truth: API-Port liefert Daten; Reducer bleiben pure und vermeiden Geschäftslogik ≠ Rumpfberechnungen.
+
+3) Slices (Entity-Adapter, Actions, Reducer, Selectors)
+3.1 stocks (beobachtete Wertpapiere)
+
+Entity: key = symbol (Domain-Symbol aus Phase 2). Entity-State enthält id: Symbol, name, currency, exchange?.
+
+Actions:
+
+loadSymbolsRequested
+
+loadSymbolsSucceeded({ symbols: ListSymbol[] })
+
+loadSymbolsFailed({ error: AppError })
+
+watchSymbolRequested({ symbol: Symbol }) (für spätere UI-Flows; hier nur State-Erfassung)
+
+unwatchSymbolRequested({ symbol: Symbol })
+
+Reducer mit createEntityAdapter<ListSymbol>().
+
+Selectors:
+
+selectAllStocks, selectStockEntities, selectStockBySymbol(symbol)
+
+abgeleitet: selectWatchedSymbols (falls Flag vorgesehen; optional in Phase 3: alle als beobachtet behandeln).
+
+3.2 trades (Trade-Historie)
+
+Entity: key = id (UUID v4).
+
+Actions:
+
+addTradeRequested({ tradeInput }) → rein lokal; Validierung über Zod aus Phase 2 (Re-Use Parser).
+
+addTradeSucceeded({ trade: Trade })
+
+addTradeFailed({ error: AppError })
+
+removeTradeRequested({ id: string }) / removeTradeSucceeded / removeTradeFailed
+
+loadTradesHydrateRequested (Persistenz folgt später; hier Mock: leeres Hydrat)
+
+Reducer mit Entity-Adapter; kein Server-Roundtrip.
+
+Selectors:
+
+selectAllTrades, selectTradesBySymbol(symbol), selectTradeCount.
+
+abgeleitet: Positionsberechnung via Domain-Utility computePositions() (Phase 2) → in Selectors, nicht im Reducer.
+
+3.3 quotes (aktuelle Kurse)
+
+Entity: key = symbol.
+
+Actions:
+
+quotesPollStart({ symbols: Symbol[] })
+
+quotesPollStop()
+
+quotesTickArrived({ quotes: PriceQuote[] })
+
+quotesTickFailed({ error: AppError })
+
+Optional: quotesSnapshotRequested({ symbols }) → one-shot getQuotes() (z. B. initial).
+
+Reducer: Merge/Upsert der Quotes; persistiert nicht.
+
+Selectors:
+
+selectQuoteBySymbol(symbol), selectPositiveSymbols, selectNegativeSymbols, selectTopMovers(n).
+
+3.4 timeseries (OHLC je Symbol & Range)
+
+State: Map { [symbol: string]: { [range in RangeKey]?: TimeSeries } } plus Lade-/Fehlerflags.
+
+Actions:
+
+timeSeriesRequested({ symbol, range })
+
+timeSeriesSucceeded({ symbol, range, series: TimeSeries })
+
+timeSeriesFailed({ symbol, range, error: AppError })
+
+timeSeriesEvictRange({ symbol, range }) (Cache-Management)
+
+Reducer: immutable Updates, kein Überschreiben anderer Ranges.
+
+Selectors:
+
+selectTimeSeries(symbol, range), selectHasTimeSeries(symbol, range), selectTimeSeriesLoading(symbol, range).
+
+3.5 portfolio (aggregiert, abgeleitet)
+
+State: rein derivativ; speichert nur UI-nahe Optionen (z. B. selectedRange: RangeKey).
+
+Actions:
+
+portfolioRangeChanged({ range })
+
+portfolioRecomputeRequested() (interne Orchestrierung)
+
+Reducer: nur Range/Flags.
+
+Selectors (kompositorisch!):
+
+selectPositions = computePositions(selectAllTrades)
+
+selectPortfolioMetrics = mittels selectPositions + selectQuoteBySymbol → Metriken.
+
+selectPortfolioSnapshot(asOf) (optional): nutzt Domain-Utility computeSnapshot.
+
+selectTopFlop(n) aus selectQuoteBySymbol + Positionen.
+
+4) Effects (API, Polling, Orchestrierung)
+4.1 StocksEffects
+
+loadSymbolsRequested$ → priceApi.listSymbols() → loadSymbolsSucceeded | loadSymbolsFailed.
+
+Fehler mit AppError wrappen; catchError.
+
+4.2 QuotesEffects
+
+Initial-Snapshot: auf loadSymbolsSucceeded oder Router-Navigation zu /stocks|/portfolio: getQuotes (one-shot) → quotesTickArrived.
+
+Polling-Stream:
+
+quotesPollStart({ symbols }) → priceApi.streamQuotes(symbols) (Mock liefert deterministisch) → map auf quotesTickArrived.
+
+Stoppen bei quotesPollStop und bei takeUntil Router-Events, die die Sichtbarkeit verlassen (z. B. Navigationsende auf anderes Feature).
+
+Retry-Strategie (z. B. retry({ count: 3, delay: 1000 })), Fehler → quotesTickFailed.
+
+4.3 TimeSeriesEffects
+
+timeSeriesRequested({ symbol, range }) → guard: wenn selectHasTimeSeries true, kein API-Call (Cache-Hit).
+
+sonst priceApi.getTimeSeries(symbol, range) → timeSeriesSucceeded | timeSeriesFailed.
+
+Optionale Pre-Fetch-Heuristik: beim Wechsel Range 1M auch 1W und 3M vorladen (konfigurierbar, hier minimal halten).
+
+4.4 PortfolioEffects
+
+Auf addTradeSucceeded, removeTradeSucceeded, quotesTickArrived, timeSeriesSucceeded, portfolioRangeChanged → portfolioRecomputeRequested.
+
+Keine Netzaufrufe; nur Trigger zur Selector-Neuberechnung (UI liest daraus).
+(Selector sind memoized; Action dient primär der UI-Synchronität.)
+
+5) Persistenz-Hooks (nur vorbereitet)
+
+Noch keine echte Persistenz (kommt später).
+
+Lege optionale Side-Effect-Stubs an (kommentiert), wo trades in Zukunft via storage.service synchronisiert werden.
+
+6) Tests (Jest, Marble)
+
+Reducer-Tests: je Slice mindestens
+
+Initialstate, *_Requested → Loading-Flag,
+
+*_Succeeded → State inhaltlich korrekt (Entity-Adapter: addOne/upsertMany),
+
+*_Failed → Error-Flag gesetzt, Loading-Flag zurück.
+
+Selector-Tests:
+
+stocks: Entities → selectAllStocks, selectStockBySymbol.
+
+trades: gegebene Trades → selectTradesBySymbol, selectPositions (nutzt computePositions; kontrolliere FIFO).
+
+quotes: selectTopMovers(n) Stabilität bei Gleichstand.
+
+timeseries: Cache-Hit/Loading-Flag.
+
+portfolio: Metriken (investiert, totalValue, pnlAbs/%), Randfälle (keine Positionen).
+
+Effects-Tests (Marbles):
+
+StocksEffects.loadSymbolsRequested$: -a---| → -b---| (succeeded) und Fehlerpfad.
+
+QuotesEffects.poll: Start → mehrere Ticks → Stop (takeUntil) → keine weiteren Emissionen.
+
+TimeSeriesEffects: Cache-Hit verhindert Call (assert auf kein httpMock.expectOne bzw. Spy-Aufrufcount).
+
+Retry-Pfade (begrenzter retry).
+
+Router-Store: minimaler Test, dass Polling bei Navigationswechsel endet (Marble --n--s → stop).
+
+Coverage-Ziel: ≥ 90 % für alle Dateien in features/*/state und app.store.module.ts.
+
+7) Integration in main.ts
+
+Registriere den Store über app.store.module.ts-Provider mit provideStore, provideEffects, provideRouterStore, StoreDevtoolsModule (dev).
+
+Sicherstellen, dass keine NgModule nötig sind (Standalone-Stil).
+
+8) Akzeptanzkriterien (prüfbar)
+
+ Store läuft: App startet ohne Fehler; Devtools zeigen die fünf Slices.
+
+ stocks lädt Symbol-Liste via PriceApiPort.listSymbols() (Mock).
+
+ quotes kann Snapshot laden und Polling starten/stoppen; Ticks aktualisieren Entity-State.
+
+ timeseries lädt OHLC pro Symbol/Range mit Cache-Hit-Vermeidung.
+
+ trades akzeptiert Add/Remove (lokal) und selectPositions liefert korrekte FIFO-Positionen.
+
+ portfolio-Selectors berechnen investiert, totalValue, pnlAbs/% korrekt (gegeben Mock-Quotes).
+
+ Jest-Suite grün, Coverage ≥ 90 %.
+
+ Kein any in public APIs; alle Actions/Reducers/Selectors streng typisiert.
+
+ Polling hält bei quotesPollStop und bei Re-Routen.
+
+9) Selbstprüfung (vom Generator auszuführen, kurz berichten)
+
+Prüfe, dass alle Actions von mindestens einem Reducer/Effect konsumiert werden (Dead Actions vermeiden).
+
+Prüfe, dass Entity-Adapter stabile IDs (Symbol/UUID) verwendet.
+
+Prüfe, dass Effects keine Speicherlecks erzeugen (takeUntil, finalize).
+
+Prüfe, dass Cache-Hits in timeseries API-Aufrufe verhindern.
+
+Prüfe, dass Selectors rein funktional sind (keine Mutation), und kompositorisch über createSelector aufgebaut werden.
+
+Melde typische Fehlerquellen (falsche Marble-Timelines, vergessenes provideMockStore, falsche Test-Scheduler-Zeitzonen).
+
+10) Am Ende zwingend ausgeben
+
+Install-/Build-/Test-Kommandos (z. B. npm i @ngrx/store @ngrx/effects @ngrx/entity @ngrx/router-store @ngrx/store-devtools --save, npm run test).
+
+Vollständige Dateiliste (neu/geändert) mit einzeiliger Zweckbeschreibung je Datei.
+
+Kurzbericht (max. 10 Zeilen) zur Selbstprüfung (Punkt 9) mit Ergebnis/Fazit.
+
+Zusatzhinweise
+
+Keine UI bauen/verändern; nur State.
+
+PriceApiPort nur in Effects verwenden; niemals direkt in Reducern/Selektoren.
+
+Determinismus in Tests sicherstellen (benutze Seeded-RNG aus Phase 2 für Quotes-Streams, via Mocks/Fakes).
+
+Strict-Mode und Serialisierbarkeit beibehalten; keine Funktionen/Date-Objekte im State speichern (nur ISO-Strings/Plain Data).
