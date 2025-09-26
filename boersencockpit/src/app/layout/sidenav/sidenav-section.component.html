@@ -1,0 +1,9 @@
+<li
+  role="presentation"
+  class="pt-4 text-[11px] font-semibold uppercase tracking-wide text-neutral-500 first:pt-0 dark:text-neutral-400"
+>
+  {{ section.label }}
+</li>
+<ng-container *ngFor="let item of section.items; trackBy: trackByItem">
+  <app-sidenav-item [item]="item" (activate)="handleNavigate()"></app-sidenav-item>
+</ng-container>

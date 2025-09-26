@@ -1,0 +1,15 @@
+<aside class="app-sidenav" [attr.aria-labelledby]="headingId">
+  <div class="flex items-center justify-between">
+    <h2 [id]="headingId" class="text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+      Navigation
+    </h2>
+  </div>
+
+  <nav aria-label="Hauptnavigation" class="mt-4">
+    <ul [appRovingTabindex]="0" role="tree" class="flex flex-col gap-1">
+      <ng-container *ngFor="let section of sections; trackBy: trackBySectionId">
+        <app-sidenav-section [section]="section" (navigate)="handleNavigate()"></app-sidenav-section>
+      </ng-container>
+    </ul>
+  </nav>
+</aside>
