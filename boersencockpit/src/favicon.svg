@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="12" fill="#1f2937" />
+  <g fill="#38bdf8" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="18" font-weight="700">
+    <text x="12" y="28">BC</text>
+    <text x="12" y="48">17</text>
+  </g>
+</svg>
