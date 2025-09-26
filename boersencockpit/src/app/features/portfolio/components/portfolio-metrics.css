@@ -1,0 +1,11 @@
+:host {
+  display: block;
+}
+
+.card {
+  transition: box-shadow 0.2s ease;
+}
+
+.card:focus-within {
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.45);
+}

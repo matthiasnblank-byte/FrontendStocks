@@ -1,10 +1,45 @@
-<section class="space-y-4">
-  <h1 class="text-2xl font-semibold tracking-tight" tabindex="-1">Portfolio-Übersicht</h1>
-  <p class="text-sm text-neutral-600 dark:text-neutral-300">
-    Die Gesamtübersicht liefert künftig Kennzahlen und Charts zum vollständigen Portfolio. Der Bereich dient als Startseite der
-    Anwendung.
-  </p>
-  <div class="rounded-lg border border-dashed border-neutral-300 p-6 text-sm text-neutral-500 dark:border-neutral-700 dark:text-neutral-400">
-    Platzhalter für den Gesamtchart und KPI-Kacheln.
-  </div>
+<section class="space-y-6">
+  <h1 class="text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-100" tabindex="-1">
+    Portfolio – Gesamtübersicht
+  </h1>
+
+  <ng-container *ngIf="(hasPositions$ | async) as hasPositions; else emptyState">
+    <ng-container *ngIf="metrics$ | async as metrics">
+      <app-portfolio-metrics [metrics]="metrics"></app-portfolio-metrics>
+    </ng-container>
+
+    <ng-container *ngIf="{ range: (range$ | async), series: (series$ | async) } as vm">
+      <app-portfolio-chart
+        class="block"
+        [range]="vm.range ?? '1M'"
+        [series]="vm.series ?? null"
+        [loading]="isChartLoading(vm.series ?? null, hasPositions)"
+        (rangeChange)="onRangeChange($event)"
+      ></app-portfolio-chart>
+    </ng-container>
+
+    <ng-container *ngIf="{ daily: (dailyPerformance$ | async), total: (totalPerformance$ | async) } as performance">
+      <app-portfolio-topflop
+        [topDaily]="performance.daily?.top ?? []"
+        [flopDaily]="performance.daily?.flop ?? []"
+        [topTotal]="performance.total?.top ?? []"
+        [flopTotal]="performance.total?.flop ?? []"
+      ></app-portfolio-topflop>
+    </ng-container>
+  </ng-container>
 </section>
+
+<ng-template #emptyState>
+  <section class="flex flex-col items-center gap-4 rounded-xl border border-dashed border-slate-300 p-10 text-center dark:border-slate-600">
+    <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Noch keine Trades vorhanden</h2>
+    <p class="max-w-xl text-sm text-slate-600 dark:text-slate-300">
+      Fügen Sie Ihre erste Aktie hinzu, um Kennzahlen, Bewertungsverlauf sowie Top- und Flop-Listen Ihres Portfolios zu sehen.
+    </p>
+    <a
+      routerLink="/stocks/add"
+      class="btn btn-primary"
+    >
+      Aktie hinzufügen
+    </a>
+  </section>
+</ng-template>

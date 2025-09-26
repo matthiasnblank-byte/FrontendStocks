@@ -1,0 +1,17 @@
+:host {
+  display: block;
+}
+
+canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.btn.btn-primary {
+  background-color: rgb(37, 99, 235);
+  color: white;
+}
+
+.btn.btn-primary:hover {
+  background-color: rgb(29, 78, 216);
+}

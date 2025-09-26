@@ -4,9 +4,13 @@ import { provideMockStore, MockStore } from '@ngrx/store/testing';
 import { of } from 'rxjs';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 
-jest.mock('ng2-charts', () => ({
-  BaseChartDirective: class {},
-}));
+jest.mock(
+  'ng2-charts',
+  () => ({
+    BaseChartDirective: class {},
+  }),
+  { virtual: true },
+);
 
 Object.defineProperty(globalThis, 'crypto', {
   value: {

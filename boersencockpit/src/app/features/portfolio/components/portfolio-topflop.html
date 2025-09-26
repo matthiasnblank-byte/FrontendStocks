@@ -1,0 +1,131 @@
+<section class="card flex flex-col gap-6" aria-labelledby="daily-performance-heading">
+  <header>
+    <h2 id="daily-performance-heading" class="text-lg font-semibold text-slate-900 dark:text-slate-100">Tages-Performance</h2>
+  </header>
+  <div class="grid gap-6 md:grid-cols-2">
+    <div aria-label="Top Tages-Performance" class="flex flex-col gap-3">
+      <h3 class="text-sm font-semibold text-emerald-600 dark:text-emerald-300">Top</h3>
+      <ul role="list" class="flex flex-col gap-2">
+        <li *ngFor="let item of topDaily; trackBy: trackBySymbol">
+          <a
+            [routerLink]="['/stocks', item.symbol]"
+            class="group flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-slate-500 dark:hover:bg-slate-700"
+            [attr.aria-label]="item.symbol + ' ' + (item.changePct | number:'1.2-2':'de-DE') + ' Prozent'"
+          >
+            <div class="flex flex-col text-left">
+              <span class="font-semibold text-slate-900 dark:text-slate-100">{{ item.symbol }}</span>
+              <span class="text-xs text-slate-500 dark:text-slate-400">
+                {{ item.price | currency: item.currency:'symbol':'1.2-2':'de-DE' }}
+                • {{ item.changeAbs | currency: item.currency:'symbol':'1.2-2':'de-DE' }}
+              </span>
+            </div>
+            <span
+              class="badge inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
+              [ngClass]="isPositive(item.changePct)
+                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-100'
+                : 'bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-100'"
+            >
+              {{ item.changePct | number: '1.2-2':'de-DE' }} %
+            </span>
+          </a>
+        </li>
+        <li *ngIf="topDaily.length === 0" class="text-xs text-slate-500 dark:text-slate-400">Keine Daten verfügbar.</li>
+      </ul>
+    </div>
+    <div aria-label="Flop Tages-Performance" class="flex flex-col gap-3">
+      <h3 class="text-sm font-semibold text-rose-600 dark:text-rose-300">Flop</h3>
+      <ul role="list" class="flex flex-col gap-2">
+        <li *ngFor="let item of flopDaily; trackBy: trackBySymbol">
+          <a
+            [routerLink]="['/stocks', item.symbol]"
+            class="group flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-slate-500 dark:hover:bg-slate-700"
+            [attr.aria-label]="item.symbol + ' ' + (item.changePct | number:'1.2-2':'de-DE') + ' Prozent'"
+          >
+            <div class="flex flex-col text-left">
+              <span class="font-semibold text-slate-900 dark:text-slate-100">{{ item.symbol }}</span>
+              <span class="text-xs text-slate-500 dark:text-slate-400">
+                {{ item.price | currency: item.currency:'symbol':'1.2-2':'de-DE' }}
+                • {{ item.changeAbs | currency: item.currency:'symbol':'1.2-2':'de-DE' }}
+              </span>
+            </div>
+            <span
+              class="badge inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
+              [ngClass]="isPositive(item.changePct)
+                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-100'
+                : 'bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-100'"
+            >
+              {{ item.changePct | number: '1.2-2':'de-DE' }} %
+            </span>
+          </a>
+        </li>
+        <li *ngIf="flopDaily.length === 0" class="text-xs text-slate-500 dark:text-slate-400">Keine Daten verfügbar.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="card flex flex-col gap-6" aria-labelledby="total-performance-heading">
+  <header>
+    <h2 id="total-performance-heading" class="text-lg font-semibold text-slate-900 dark:text-slate-100">Gesamt-Performance</h2>
+  </header>
+  <div class="grid gap-6 md:grid-cols-2">
+    <div aria-label="Top Gesamt-Performance" class="flex flex-col gap-3">
+      <h3 class="text-sm font-semibold text-emerald-600 dark:text-emerald-300">Top</h3>
+      <ul role="list" class="flex flex-col gap-2">
+        <li *ngFor="let item of topTotal; trackBy: trackBySymbol">
+          <a
+            [routerLink]="['/stocks', item.symbol]"
+            class="group flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-slate-500 dark:hover:bg-slate-700"
+            [attr.aria-label]="item.symbol + ' ' + (item.pnlPct | number:'1.2-2':'de-DE') + ' Prozent'"
+          >
+            <div class="flex flex-col text-left">
+              <span class="font-semibold text-slate-900 dark:text-slate-100">{{ item.symbol }}</span>
+              <span class="text-xs text-slate-500 dark:text-slate-400">
+                Bestand: {{ item.qty | number: '1.0-0':'de-DE' }}
+                • {{ item.pnlAbs | currency: item.currency:'symbol':'1.2-2':'de-DE' }}
+              </span>
+            </div>
+            <span
+              class="badge inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
+              [ngClass]="isPositive(item.pnlPct)
+                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-100'
+                : 'bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-100'"
+            >
+              {{ item.pnlPct | number: '1.2-2':'de-DE' }} %
+            </span>
+          </a>
+        </li>
+        <li *ngIf="topTotal.length === 0" class="text-xs text-slate-500 dark:text-slate-400">Keine Daten verfügbar.</li>
+      </ul>
+    </div>
+    <div aria-label="Flop Gesamt-Performance" class="flex flex-col gap-3">
+      <h3 class="text-sm font-semibold text-rose-600 dark:text-rose-300">Flop</h3>
+      <ul role="list" class="flex flex-col gap-2">
+        <li *ngFor="let item of flopTotal; trackBy: trackBySymbol">
+          <a
+            [routerLink]="['/stocks', item.symbol]"
+            class="group flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-slate-500 dark:hover:bg-slate-700"
+            [attr.aria-label]="item.symbol + ' ' + (item.pnlPct | number:'1.2-2':'de-DE') + ' Prozent'"
+          >
+            <div class="flex flex-col text-left">
+              <span class="font-semibold text-slate-900 dark:text-slate-100">{{ item.symbol }}</span>
+              <span class="text-xs text-slate-500 dark:text-slate-400">
+                Bestand: {{ item.qty | number: '1.0-0':'de-DE' }}
+                • {{ item.pnlAbs | currency: item.currency:'symbol':'1.2-2':'de-DE' }}
+              </span>
+            </div>
+            <span
+              class="badge inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
+              [ngClass]="isPositive(item.pnlPct)
+                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-100'
+                : 'bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-100'"
+            >
+              {{ item.pnlPct | number: '1.2-2':'de-DE' }} %
+            </span>
+          </a>
+        </li>
+        <li *ngIf="flopTotal.length === 0" class="text-xs text-slate-500 dark:text-slate-400">Keine Daten verfügbar.</li>
+      </ul>
+    </div>
+  </div>
+</section>
