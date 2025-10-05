@@ -89,14 +89,14 @@ export type TradeFormSchema = typeof tradeFormSchema;
 export type TradeFormRawValue = z.input<TradeFormSchema>;
 export type TradeFormValue = z.output<TradeFormSchema>;
 
-export type TradeFormGroupControls = {
+export interface TradeFormGroupControls {
   readonly symbol: FormControl<string>;
   readonly side: FormControl<'BUY' | 'SELL'>;
   readonly quantity: FormControl<number>;
   readonly price: FormControl<number>;
   readonly timestamp: FormControl<string>;
   readonly note: FormControl<string>;
-};
+}
 
 export type TradeFormGroup = FormGroup<TradeFormGroupControls>;
 

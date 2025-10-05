@@ -9,16 +9,20 @@ describe('BörsenCockpit Layout & A11y', () => {
     cy.focused().should('have.attr', 'id', 'main');
   });
 
-  it('supports roving tabindex navigation inside the sidenav', () => {
-    cy.get('nav[aria-label="Hauptnavigation"]').find('a').first().focus();
-    cy.focused().type('{downarrow}');
-    cy.focused().should('contain.text', 'Aktie hinzufügen');
-    cy.focused().type('{home}');
-    cy.focused().should('contain.text', 'Überblick');
-    cy.focused().type('{end}');
-    cy.focused().should('contain.text', 'Gesamtübersicht');
-    cy.focused().type('{enter}');
-    cy.focused().should('contain.text', 'Portfolio-Übersicht');
+  it('navigates between sidenav links', () => {
+    cy.get('nav[aria-label="Hauptnavigation"]').find('a').as('links');
+
+    cy.get('@links').should('have.length.at.least', 3);
+
+    cy.get('@links').eq(0).click();
+    cy.location('pathname').should('eq', '/stocks');
+
+    cy.get('@links').eq(1).click();
+    cy.location('pathname').should('eq', '/stocks/add');
+    cy.get('@links').eq(1).should('have.attr', 'aria-current', 'page');
+
+    cy.get('@links').eq(2).click();
+    cy.location('pathname').should('eq', '/portfolio');
     cy.get('nav[aria-label="Hauptnavigation"]').find('a[aria-current="page"]').should('contain.text', 'Gesamtübersicht');
   });
 

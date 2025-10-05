@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, DestroyRef, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnDestroy, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
@@ -47,7 +47,7 @@ const DEFAULT_RANGE: RangeKey = '1M';
   styleUrl: './stock-detail.page.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class StockDetailPageComponent implements OnInit, OnDestroy {
+export class StockDetailPageComponent implements OnDestroy {
   private readonly store = inject(Store);
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
@@ -125,10 +125,6 @@ export class StockDetailPageComponent implements OnInit, OnDestroy {
         this.store.dispatch(QuotesActions.quotesSnapshotRequested({ symbols: [symbol] }));
         this.store.dispatch(QuotesActions.quotesPollStart({ symbols: [symbol] }));
       });
-  }
-
-  ngOnInit(): void {
-    // Ensure default data load when entering the page.
   }
 
   ngOnDestroy(): void {

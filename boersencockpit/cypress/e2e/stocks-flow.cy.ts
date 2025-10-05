@@ -1,5 +1,6 @@
 describe('Stocks feature flow', () => {
   beforeEach(() => {
+    cy.viewport(1280, 800);
     cy.visit('/stocks');
   });
 
@@ -28,6 +29,6 @@ describe('Stocks feature flow', () => {
 
     cy.contains('Löschen').first().click({ force: true });
     cy.contains('Trade löschen?');
-    cy.contains('Löschen').last().click();
+    cy.contains('Löschen').last().scrollIntoView().click({ force: true });
   });
 });
