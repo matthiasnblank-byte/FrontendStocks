@@ -72,8 +72,10 @@ const removeNestedEntry = <T extends Record<string, Partial<Record<string, unkno
   if (!nested) {
     return state;
   }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { [range]: _, ...rest } = nested;
   if (Object.keys(rest).length === 0) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { [symbol]: __, ...remaining } = state;
     return remaining as T;
   }

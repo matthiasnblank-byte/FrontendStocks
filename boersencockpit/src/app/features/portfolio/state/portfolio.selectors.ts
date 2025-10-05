@@ -4,7 +4,7 @@ import { createSelector } from '@ngrx/store';
 import { PORTFOLIO_FEATURE_KEY } from './portfolio.models';
 import { portfolioReducer } from './portfolio.reducer';
 import { selectPositions as selectTradePositions, selectAllTrades } from '../../trades/state/trades.selectors';
-import { selectAllQuotes, selectQuoteBySymbol } from '../../quotes/state/quotes.selectors';
+import { selectAllQuotes } from '../../quotes/state/quotes.selectors';
 import { computeSnapshot, computePortfolioSeries, buildPositionTimeline, PositionTimelinePoint } from '../../../domain/utils/portfolio';
 import { PortfolioSnapshot } from '../../../domain/models/portfolio-snapshot';
 import { PriceQuote } from '../../../domain/models/quote';
