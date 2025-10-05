@@ -1,8 +1,12 @@
 export const registerables: unknown[] = [];
 
-export class Chart<TType = string, TData = unknown, TLabel = unknown> {
+export class Chart {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   static register(..._items: unknown[]): void {
     // noop for tests
   }
-  constructor(_context: unknown, _config: unknown) {}
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  constructor(_context: unknown, _config: unknown) {
+    // noop for tests
+  }
 }
