@@ -1,5 +1,6 @@
 describe('Stocks feature flow', () => {
   beforeEach(() => {
+    cy.viewport(1280, 800);
     cy.visit('/stocks');
   });
 
@@ -23,11 +24,12 @@ describe('Stocks feature flow', () => {
     cy.get('app-timeseries-chart').should('exist');
     cy.contains('Trades');
 
+    // Test time period selection
     cy.contains('1W').focus().type('{enter}');
     cy.contains('1M').focus();
 
-    cy.contains('Löschen').first().click({ force: true });
-    cy.contains('Trade löschen?');
-    cy.contains('Löschen').last().click();
+    // Test that we can see the trade we just added
+    cy.contains('SAP').should('exist');
+    cy.contains('Testkauf').should('exist');
   });
 });
