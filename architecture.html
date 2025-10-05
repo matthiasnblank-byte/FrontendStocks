@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BörsenCockpit - Architekturübersicht</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 2rem;
+        }
+
+        .section {
+            margin-bottom: 3rem;
+        }
+
+        .section-title {
+            font-size: 2rem;
+            color: #1e3c72;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 3px solid #667eea;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section-title::before {
+            content: '▶';
+            color: #667eea;
+        }
+
+        .architecture-diagram {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .layer {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .layer:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .layer-title {
+            font-size: 1.4rem;
+            color: #1e3c72;
+            margin-bottom: 1rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .layer-icon {
+            width: 30px;
+            height: 30px;
+            background: #667eea;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .layer-content {
+            list-style: none;
+        }
+
+        .layer-content li {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .layer-content li:last-child {
+            border-bottom: none;
+        }
+
+        .layer-content li::before {
+            content: '✓';
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .tech-stack {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+
+        .tech-item {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .tech-item:hover {
+            transform: scale(1.05);
+        }
+
+        .tech-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .tech-version {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .feature-card {
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 15px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .feature-card:hover {
+            border-color: #764ba2;
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .feature-title {
+            font-size: 1.3rem;
+            color: #1e3c72;
+            margin-bottom: 1rem;
+            font-weight: bold;
+        }
+
+        .feature-description {
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .data-flow {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 15px;
+            margin: 2rem 0;
+        }
+
+        .flow-steps {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .flow-step {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 1rem 1.5rem;
+            border-radius: 10px;
+            text-align: center;
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .flow-arrow {
+            font-size: 2rem;
+            opacity: 0.7;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-number {
+            font-size: 3rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+
+        .ngrx-diagram {
+            background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 15px;
+            margin: 2rem 0;
+        }
+
+        .state-items {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .state-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 1rem;
+            border-radius: 10px;
+            border-left: 4px solid #30cfd0;
+        }
+
+        .state-name {
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .footer {
+            background: #1e3c72;
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            margin: 0.2rem;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .flow-steps {
+                flex-direction: column;
+            }
+            
+            .flow-arrow {
+                transform: rotate(90deg);
+            }
+        }
+
+        .highlight-box {
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin: 1rem 0;
+            border-left: 5px solid #f5576c;
+        }
+
+        .highlight-title {
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            color: #1e3c72;
+        }
+
+        .code-block {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 1rem;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 BörsenCockpit</h1>
+            <p>Moderne Stock-Market Portfolio Management Anwendung</p>
+            <p style="font-size: 0.9rem; margin-top: 1rem;">Angular 17 • NgRx • Tailwind CSS • TypeScript</p>
+        </div>
+
+        <div class="content">
+            <!-- Übersicht -->
+            <div class="section">
+                <h2 class="section-title">Projektübersicht</h2>
+                <p style="line-height: 1.8; color: #666; font-size: 1.1rem;">
+                    BörsenCockpit ist ein webbasiertes Dashboard für Aktien- und Portfoliodaten. 
+                    Die Anwendung nutzt moderne Angular 17 Standalone Components, NgRx für State Management 
+                    und bietet eine elegante Benutzeroberfläche mit Tailwind CSS. Das Projekt verbindet sich 
+                    mit der AlphaVantage API für Echtzeit-Börsendaten.
+                </p>
+                
+                <div class="stats">
+                    <div class="stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <div class="stat-number">5</div>
+                        <div class="stat-label">Feature Module</div>
+                    </div>
+                    <div class="stat-card" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+                        <div class="stat-number">5</div>
+                        <div class="stat-label">NgRx States</div>
+                    </div>
+                    <div class="stat-card" style="background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);">
+                        <div class="stat-number">3</div>
+                        <div class="stat-label">Routen</div>
+                    </div>
+                    <div class="stat-card" style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);">
+                        <div class="stat-number">85%+</div>
+                        <div class="stat-label">Code Coverage</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Technologie Stack -->
+            <div class="section">
+                <h2 class="section-title">Technologie-Stack</h2>
+                <div class="tech-stack">
+                    <div class="tech-item">
+                        <div class="tech-name">Angular</div>
+                        <div class="tech-version">v17.3 (Standalone)</div>
+                    </div>
+                    <div class="tech-item">
+                        <div class="tech-name">TypeScript</div>
+                        <div class="tech-version">v5.4.2</div>
+                    </div>
+                    <div class="tech-item">
+                        <div class="tech-name">NgRx</div>
+                        <div class="tech-version">v17.2 (State Management)</div>
+                    </div>
+                    <div class="tech-item">
+                        <div class="tech-name">Tailwind CSS</div>
+                        <div class="tech-version">v3.4.13</div>
+                    </div>
+                    <div class="tech-item">
+                        <div class="tech-name">RxJS</div>
+                        <div class="tech-version">v7.8</div>
+                    </div>
+                    <div class="tech-item">
+                        <div class="tech-name">Chart.js</div>
+                        <div class="tech-version">v4.5 (Visualisierung)</div>
+                    </div>
+                    <div class="tech-item">
+                        <div class="tech-name">Zod</div>
+                        <div class="tech-version">v3.23 (Validation)</div>
+                    </div>
+                    <div class="tech-item">
+                        <div class="tech-name">Jest</div>
+                        <div class="tech-version">v29.7 (Testing)</div>
+                    </div>
+                    <div class="tech-item">
+                        <div class="tech-name">Cypress</div>
+                        <div class="tech-version">v13.13 (E2E Tests)</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Architektur-Diagramm -->
+            <div class="section">
+                <h2 class="section-title">Architektur-Übersicht</h2>
+                <div class="architecture-diagram">
+                    <!-- Presentation Layer -->
+                    <div class="layer" style="background: linear-gradient(135deg, #fff5f5 0%, #ffe0e0 100%);">
+                        <div class="layer-title">
+                            <div class="layer-icon" style="background: #f5576c;">🎨</div>
+                            Presentation Layer
+                        </div>
+                        <ul class="layer-content">
+                            <li>App Shell Component</li>
+                            <li>Header & Navigation</li>
+                            <li>Sidenav</li>
+                            <li>Accessibility Components</li>
+                            <li>Shared Components</li>
+                            <li>Page Components</li>
+                        </ul>
+                    </div>
+
+                    <!-- Feature Layer -->
+                    <div class="layer" style="background: linear-gradient(135deg, #e0f7ff 0%, #b3e5fc 100%);">
+                        <div class="layer-title">
+                            <div class="layer-icon" style="background: #30cfd0;">🧩</div>
+                            Feature Modules
+                        </div>
+                        <ul class="layer-content">
+                            <li>Portfolio Management</li>
+                            <li>Stocks (List, Detail, Add)</li>
+                            <li>Quotes (Real-time)</li>
+                            <li>Timeseries (Charts)</li>
+                            <li>Trades (Transaktionen)</li>
+                        </ul>
+                    </div>
+
+                    <!-- State Management -->
+                    <div class="layer" style="background: linear-gradient(135deg, #f5f0ff 0%, #e0d4ff 100%);">
+                        <div class="layer-title">
+                            <div class="layer-icon" style="background: #764ba2;">🔄</div>
+                            State Management
+                        </div>
+                        <ul class="layer-content">
+                            <li>NgRx Store</li>
+                            <li>Actions & Reducers</li>
+                            <li>Effects (Side Effects)</li>
+                            <li>Selectors</li>
+                            <li>Router Store</li>
+                            <li>DevTools Integration</li>
+                        </ul>
+                    </div>
+
+                    <!-- Core Services -->
+                    <div class="layer" style="background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);">
+                        <div class="layer-title">
+                            <div class="layer-icon" style="background: #ffa726;">⚙️</div>
+                            Core Services
+                        </div>
+                        <ul class="layer-content">
+                            <li>AlphaVantage API Service</li>
+                            <li>Mock Price API Service</li>
+                            <li>Cache Service</li>
+                            <li>Theme Service</li>
+                            <li>HTTP Client</li>
+                        </ul>
+                    </div>
+
+                    <!-- Domain Layer -->
+                    <div class="layer" style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);">
+                        <div class="layer-title">
+                            <div class="layer-icon" style="background: #66bb6a;">📦</div>
+                            Domain Layer
+                        </div>
+                        <ul class="layer-content">
+                            <li>Models (Candle, Quote, Trade)</li>
+                            <li>Schemas (Zod Validation)</li>
+                            <li>Portfolio Utils</li>
+                            <li>Business Logic</li>
+                            <li>Type Definitions</li>
+                        </ul>
+                    </div>
+
+                    <!-- Infrastructure -->
+                    <div class="layer" style="background: linear-gradient(135deg, #fce4ec 0%, #f8bbd0 100%);">
+                        <div class="layer-title">
+                            <div class="layer-icon" style="background: #ec407a;">🏗️</div>
+                            Infrastructure
+                        </div>
+                        <ul class="layer-content">
+                            <li>Routing Configuration</li>
+                            <li>Environment Config</li>
+                            <li>Timezone Utils</li>
+                            <li>Error Handling</li>
+                            <li>Testing Utilities</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NgRx State Management -->
+            <div class="section">
+                <h2 class="section-title">NgRx State Management</h2>
+                <div class="ngrx-diagram">
+                    <h3 style="font-size: 1.5rem; margin-bottom: 1rem;">Feature States</h3>
+                    <p style="margin-bottom: 1rem; opacity: 0.9;">
+                        Das Application State wird in separate Feature-States aufgeteilt, jeder mit eigenen Actions, Reducers, Effects und Selectors.
+                    </p>
+                    <div class="state-items">
+                        <div class="state-item">
+                            <div class="state-name">📊 Stocks State</div>
+                            <div>Aktienübersicht & Details</div>
+                        </div>
+                        <div class="state-item">
+                            <div class="state-name">💰 Portfolio State</div>
+                            <div>Portfolio-Snapshot & Positionen</div>
+                        </div>
+                        <div class="state-item">
+                            <div class="state-name">💹 Quotes State</div>
+                            <div>Echtzeit-Kursdaten</div>
+                        </div>
+                        <div class="state-item">
+                            <div class="state-name">📈 Timeseries State</div>
+                            <div>Historische Kursdaten</div>
+                        </div>
+                        <div class="state-item">
+                            <div class="state-name">🔄 Trades State</div>
+                            <div>Transaktionen & Handel</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Datenfluss -->
+            <div class="section">
+                <h2 class="section-title">Datenfluss-Architektur</h2>
+                <div class="data-flow">
+                    <h3 style="font-size: 1.5rem; margin-bottom: 0.5rem;">Unidirektionaler Datenfluss</h3>
+                    <p style="opacity: 0.9; margin-bottom: 1rem;">Basiert auf Redux-Pattern mit NgRx</p>
+                    <div class="flow-steps">
+                        <div class="flow-step">
+                            <div style="font-size: 2rem; margin-bottom: 0.5rem;">🎯</div>
+                            <div style="font-weight: bold;">Component</div>
+                            <div style="font-size: 0.9rem; opacity: 0.9;">Dispatched Action</div>
+                        </div>
+                        <div class="flow-arrow">→</div>
+                        <div class="flow-step">
+                            <div style="font-size: 2rem; margin-bottom: 0.5rem;">⚡</div>
+                            <div style="font-weight: bold;">Effects</div>
+                            <div style="font-size: 0.9rem; opacity: 0.9;">Side Effects & API</div>
+                        </div>
+                        <div class="flow-arrow">→</div>
+                        <div class="flow-step">
+                            <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔄</div>
+                            <div style="font-weight: bold;">Reducer</div>
+                            <div style="font-size: 0.9rem; opacity: 0.9;">State Update</div>
+                        </div>
+                        <div class="flow-arrow">→</div>
+                        <div class="flow-step">
+                            <div style="font-size: 2rem; margin-bottom: 0.5rem;">🎨</div>
+                            <div style="font-weight: bold;">Selector</div>
+                            <div style="font-size: 0.9rem; opacity: 0.9;">Derived State</div>
+                        </div>
+                        <div class="flow-arrow">→</div>
+                        <div class="flow-step">
+                            <div style="font-size: 2rem; margin-bottom: 0.5rem;">✨</div>
+                            <div style="font-weight: bold;">View Update</div>
+                            <div style="font-size: 0.9rem; opacity: 0.9;">Re-render</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Features -->
+            <div class="section">
+                <h2 class="section-title">Feature-Module im Detail</h2>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-title">📊 Portfolio Management</div>
+                        <div class="feature-description">
+                            Verwaltung des gesamten Portfolios mit Portfolio-Snapshots, Positionen, 
+                            Performance-Tracking und historischer Analyse.
+                            <div style="margin-top: 0.5rem;">
+                                <span class="badge">State</span>
+                                <span class="badge">Effects</span>
+                                <span class="badge">Services</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-title">📈 Stocks</div>
+                        <div class="feature-description">
+                            Aktienübersicht mit Detail-Ansichten, Hinzufügen neuer Aktien, 
+                            und Chart-Visualisierungen mit Chart.js.
+                            <div style="margin-top: 0.5rem;">
+                                <span class="badge">List View</span>
+                                <span class="badge">Detail View</span>
+                                <span class="badge">Add Stock</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-title">💹 Quotes</div>
+                        <div class="feature-description">
+                            Echtzeit-Kursdaten von AlphaVantage API mit automatischer 
+                            Aktualisierung und Caching für Performance.
+                            <div style="margin-top: 0.5rem;">
+                                <span class="badge">Real-time</span>
+                                <span class="badge">API</span>
+                                <span class="badge">Cache</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-title">📉 Timeseries</div>
+                        <div class="feature-description">
+                            Historische Kursdaten mit verschiedenen Zeiträumen, 
+                            Candlestick-Charts und technischer Analyse.
+                            <div style="margin-top: 0.5rem;">
+                                <span class="badge">History</span>
+                                <span class="badge">Charts</span>
+                                <span class="badge">Analysis</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-title">🔄 Trades</div>
+                        <div class="feature-description">
+                            Verwaltung von Kauf- und Verkaufstransaktionen mit 
+                            Validierung über Zod-Schemas und Transaktionshistorie.
+                            <div style="margin-top: 0.5rem;">
+                                <span class="badge">Buy/Sell</span>
+                                <span class="badge">Validation</span>
+                                <span class="badge">History</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API Integration -->
+            <div class="section">
+                <h2 class="section-title">API & Datenquellen</h2>
+                <div class="highlight-box">
+                    <div class="highlight-title">🔌 AlphaVantage API Integration</div>
+                    <p style="margin-bottom: 1rem; color: #666;">
+                        Die Anwendung nutzt die AlphaVantage API für Echtzeit- und historische Börsen daten.
+                        Implementiert mit intelligenten Features:
+                    </p>
+                    <ul style="list-style: none; padding-left: 0;">
+                        <li style="padding: 0.3rem 0;">✓ <strong>Rate Limiting:</strong> Schutz vor API-Limits mit Request-Queue</li>
+                        <li style="padding: 0.3rem 0;">✓ <strong>Caching:</strong> Intelligentes Caching mit konfigurierbarem TTL</li>
+                        <li style="padding: 0.3rem 0;">✓ <strong>Retry Logic:</strong> Exponential Backoff bei Fehlern</li>
+                        <li style="padding: 0.3rem 0;">✓ <strong>Validation:</strong> Zod-Schema-Validierung aller API-Responses</li>
+                        <li style="padding: 0.3rem 0;">✓ <strong>Mock Mode:</strong> Mock-API für Entwicklung ohne API-Key</li>
+                    </ul>
+                </div>
+
+                <div style="margin-top: 1.5rem;">
+                    <h4 style="margin-bottom: 0.5rem; color: #1e3c72;">Port & Adapter Pattern</h4>
+                    <p style="color: #666; line-height: 1.6;">
+                        Die Anwendung nutzt das Port & Adapter Pattern für API-Abstraktion. 
+                        Die <code style="background: #f5f5f5; padding: 0.2rem 0.5rem; border-radius: 3px;">PriceApiPort</code> 
+                        Interface ermöglicht einfachen Wechsel zwischen verschiedenen Datenquellen (AlphaVantage, Mock, oder zukünftig andere APIs).
+                    </p>
+                </div>
+            </div>
+
+            <!-- Testing & Quality -->
+            <div class="section">
+                <h2 class="section-title">Testing & Qualitätssicherung</h2>
+                <div class="architecture-diagram">
+                    <div class="layer" style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);">
+                        <div class="layer-title">
+                            <div class="layer-icon" style="background: #66bb6a;">🧪</div>
+                            Unit Tests (Jest)
+                        </div>
+                        <ul class="layer-content">
+                            <li>29.x mit Angular Preset</li>
+                            <li>Jest Marbles für RxJS</li>
+                            <li>≥90% Coverage (Lines/Statements)</li>
+                            <li>≥85% Coverage (Branches)</li>
+                            <li>Strict Mocking</li>
+                        </ul>
+                    </div>
+
+                    <div class="layer" style="background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);">
+                        <div class="layer-title">
+                            <div class="layer-icon" style="background: #ff9800;">🎯</div>
+                            E2E Tests (Cypress)
+                        </div>
+                        <ul class="layer-content">
+                            <li>Cypress 13.x</li>
+                            <li>Smoke Tests</li>
+                            <li>User Flow Tests</li>
+                            <li>Navigation Tests</li>
+                            <li>CI Integration</li>
+                        </ul>
+                    </div>
+
+                    <div class="layer" style="background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);">
+                        <div class="layer-title">
+                            <div class="layer-icon" style="background: #ab47bc;">📏</div>
+                            Code Quality
+                        </div>
+                        <ul class="layer-content">
+                            <li>ESLint (strict rules)</li>
+                            <li>Prettier (formatting)</li>
+                            <li>TypeScript Strict Mode</li>
+                            <li>Husky Git Hooks</li>
+                            <li>Conventional Commits</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CI/CD Pipeline -->
+            <div class="section">
+                <h2 class="section-title">CI/CD & Deployment</h2>
+                <div class="data-flow" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                    <h3 style="font-size: 1.5rem; margin-bottom: 0.5rem;">Automated Pipeline</h3>
+                    <div class="flow-steps" style="margin-top: 1.5rem;">
+                        <div class="flow-step">
+                            <div style="font-weight: bold;">Push/PR</div>
+                            <div style="font-size: 0.85rem; opacity: 0.9; margin-top: 0.3rem;">GitHub Trigger</div>
+                        </div>
+                        <div class="flow-arrow">→</div>
+                        <div class="flow-step">
+                            <div style="font-weight: bold;">Lint & Format</div>
+                            <div style="font-size: 0.85rem; opacity: 0.9; margin-top: 0.3rem;">ESLint + Prettier</div>
+                        </div>
+                        <div class="flow-arrow">→</div>
+                        <div class="flow-step">
+                            <div style="font-weight: bold;">Test</div>
+                            <div style="font-size: 0.85rem; opacity: 0.9; margin-top: 0.3rem;">Jest + Cypress</div>
+                        </div>
+                        <div class="flow-arrow">→</div>
+                        <div class="flow-step">
+                            <div style="font-weight: bold;">Build</div>
+                            <div style="font-size: 0.85rem; opacity: 0.9; margin-top: 0.3rem;">Production Build</div>
+                        </div>
+                        <div class="flow-arrow">→</div>
+                        <div class="flow-step">
+                            <div style="font-weight: bold;">Release</div>
+                            <div style="font-size: 0.85rem; opacity: 0.9; margin-top: 0.3rem;">Semantic Release</div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 1.5rem; background: rgba(255,255,255,0.2); padding: 1rem; border-radius: 10px;">
+                        <strong>Deployment Optionen:</strong><br>
+                        • Docker Multi-Stage Build (Node → Nginx)<br>
+                        • Nginx mit Security Headers<br>
+                        • Static Hosting Ready (dist/)<br>
+                        • Automatic CHANGELOG Generation
+                    </div>
+                </div>
+            </div>
+
+            <!-- Routing Structure -->
+            <div class="section">
+                <h2 class="section-title">Routing-Struktur</h2>
+                <div class="highlight-box" style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);">
+                    <div class="highlight-title">🛣️ Application Routes</div>
+                    <div style="margin-top: 1rem;">
+                        <div style="font-family: monospace; color: #1e3c72; margin: 0.5rem 0;">
+                            <strong>/</strong> → Redirect to /portfolio
+                        </div>
+                        <div style="font-family: monospace; color: #1e3c72; margin: 0.5rem 0; padding-left: 1rem;">
+                            <strong>/portfolio</strong> → Portfolio Overview (Lazy Loaded)
+                        </div>
+                        <div style="font-family: monospace; color: #1e3c72; margin: 0.5rem 0; padding-left: 1rem;">
+                            <strong>/stocks</strong> → Stocks List (Lazy Loaded)
+                        </div>
+                        <div style="font-family: monospace; color: #1e3c72; margin: 0.5rem 0; padding-left: 2rem;">
+                            <strong>/stocks/add</strong> → Add New Stock (Lazy Loaded)
+                        </div>
+                        <div style="font-family: monospace; color: #1e3c72; margin: 0.5rem 0; padding-left: 2rem;">
+                            <strong>/stocks/:symbol</strong> → Stock Detail (Lazy Loaded)
+                        </div>
+                    </div>
+                    <p style="margin-top: 1rem; color: #666;">
+                        Alle Routes nutzen Lazy Loading für optimale Performance und werden 
+                        innerhalb der App Shell Component gerendert.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Best Practices -->
+            <div class="section">
+                <h2 class="section-title">Best Practices & Patterns</h2>
+                <div class="features-grid">
+                    <div class="feature-card" style="border-color: #66bb6a;">
+                        <div class="feature-title">🎯 Clean Architecture</div>
+                        <div class="feature-description">
+                            Klare Trennung von Layers (Presentation, Domain, Core, Infrastructure) 
+                            für Wartbarkeit und Testbarkeit.
+                        </div>
+                    </div>
+
+                    <div class="feature-card" style="border-color: #42a5f5;">
+                        <div class="feature-title">🔒 Type Safety</div>
+                        <div class="feature-description">
+                            Strict TypeScript Mode, Zod-Schema-Validierung, und Branded Types 
+                            für maximale Type-Sicherheit.
+                        </div>
+                    </div>
+
+                    <div class="feature-card" style="border-color: #ab47bc;">
+                        <div class="feature-title">♿ Accessibility</div>
+                        <div class="feature-description">
+                            Dediziertes Accessibility-Modul mit Focus Management, 
+                            Keyboard Navigation und Screen Reader Support.
+                        </div>
+                    </div>
+
+                    <div class="feature-card" style="border-color: #ff7043;">
+                        <div class="feature-title">⚡ Performance</div>
+                        <div class="feature-description">
+                            Lazy Loading, Code Splitting, Memoization, 
+                            und intelligentes Caching für optimale Performance.
+                        </div>
+                    </div>
+
+                    <div class="feature-card" style="border-color: #26c6da;">
+                        <div class="feature-title">🌍 Internationalisierung</div>
+                        <div class="feature-description">
+                            DE-DE Locale, EUR Currency, Europe/Berlin Timezone 
+                            mit zentraler Konfiguration.
+                        </div>
+                    </div>
+
+                    <div class="feature-card" style="border-color: #ffa726;">
+                        <div class="feature-title">🔐 Security</div>
+                        <div class="feature-description">
+                            Security Headers (Nginx), API-Key-Management, 
+                            NPM Audit Integration und License Checking.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Development Workflow -->
+            <div class="section">
+                <h2 class="section-title">Entwicklungs-Workflow</h2>
+                <div class="code-block">
+# Installation
+npm ci
+
+# Development Server
+npm run start           # → http://localhost:4200
+
+# Quality Checks
+npm run lint           # ESLint auf geänderte Dateien
+npm run lint:all       # ESLint auf gesamtes Projekt
+npm run format:check   # Prettier Check
+npm run format         # Auto-Format
+
+# Testing
+npm run test          # Jest Unit Tests
+npm run test:watch    # Jest Watch Mode
+npm run test:cov      # Coverage Report
+npm run e2e           # Cypress E2E Tests
+npm run e2e:open      # Cypress Interactive
+
+# Build & Deploy
+npm run build         # Production Build
+npm run docker:build  # Docker Image erstellen
+npm run docker:run    # Docker Container starten
+
+# CI Pipeline (lokal)
+npm run ci            # Komplette CI-Pipeline
+                </div>
+            </div>
+
+            <!-- Roadmap -->
+            <div class="section">
+                <h2 class="section-title">Roadmap & Zukunft</h2>
+                <div class="highlight-box" style="background: linear-gradient(135deg, #fce4ec 0%, #f8bbd0 100%);">
+                    <h4 style="color: #1e3c72; margin-bottom: 1rem;">🗺️ Geplante Features (Phase 2-6)</h4>
+                    <div style="display: grid; gap: 1rem;">
+                        <div style="background: white; padding: 1rem; border-radius: 8px;">
+                            <strong>Phase 2:</strong> Erweiterte Zeitformatierung & API-Adapter
+                        </div>
+                        <div style="background: white; padding: 1rem; border-radius: 8px;">
+                            <strong>Phase 3:</strong> Erweiterte Portfolio-Funktionen & Analytics
+                        </div>
+                        <div style="background: white; padding: 1rem; border-radius: 8px;">
+                            <strong>Phase 4:</strong> Theming-System & Dark Mode Toggle
+                        </div>
+                        <div style="background: white; padding: 1rem; border-radius: 8px;">
+                            <strong>Phase 5:</strong> Erweiterte Chart-Visualisierungen & Technical Analysis
+                        </div>
+                        <div style="background: white; padding: 1rem; border-radius: 8px;">
+                            <strong>Phase 6:</strong> Production Deployment & Observability (Monitoring, Logging)
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <h3 style="margin-bottom: 1rem;">📊 BörsenCockpit Architecture</h3>
+            <p>Phase 1 Foundation • Modern Angular 17 Application</p>
+            <p style="margin-top: 1rem; opacity: 0.8; font-size: 0.9rem;">
+                Built with ❤️ using Angular, NgRx, TypeScript & Tailwind CSS
+            </p>
+            <div style="margin-top: 1.5rem;">
+                <span class="badge" style="background: white; color: #1e3c72;">Node.js ≥20</span>
+                <span class="badge" style="background: white; color: #1e3c72;">NPM ≥10</span>
+                <span class="badge" style="background: white; color: #1e3c72;">Angular 17</span>
+                <span class="badge" style="background: white; color: #1e3c72;">TypeScript 5.4</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Smooth scroll for any internal links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+
+        // Add animation on scroll
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '0';
+                    entry.target.style.transform = 'translateY(20px)';
+                    setTimeout(() => {
+                        entry.target.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+                        entry.target.style.opacity = '1';
+                        entry.target.style.transform = 'translateY(0)';
+                    }, 100);
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.section').forEach(section => {
+            observer.observe(section);
+        });
+
+        // Add click effect to cards
+        document.querySelectorAll('.layer, .tech-item, .feature-card').forEach(card => {
+            card.addEventListener('click', function() {
+                this.style.transform = 'scale(0.98)';
+                setTimeout(() => {
+                    this.style.transform = '';
+                }, 200);
+            });
+        });
+
+        console.log('🚀 BörsenCockpit Architecture Documentation loaded!');
+        console.log('📊 Explore the architecture of this modern Angular application');
+    </script>
+</body>
+</html>
